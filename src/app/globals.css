@@ -21,8 +21,10 @@
   --color-lacquer-deep: var(--lacquer-deep);
   --color-steam: var(--steam);
   --color-line: var(--line);
-  --font-display: var(--font-shippori);
-  --font-sans: var(--font-zen);
+  --font-display: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho",
+    "Noto Serif JP", serif;
+  --font-sans: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic",
+    "YuGothic", "Noto Sans JP", sans-serif;
 }
 
 * {
@@ -41,7 +43,7 @@ body {
     radial-gradient(1200px 500px at 10% -10%, var(--glow), transparent 55%),
     radial-gradient(900px 420px at 90% 0%, rgba(26, 21, 18, 0.06), transparent 50%),
     linear-gradient(180deg, var(--steam) 0%, var(--bg) 38%, var(--bg-deep) 100%);
-  font-family: var(--font-zen), "Hiragino Sans", sans-serif;
+  font-family: var(--font-sans);
 }
 
 a {
