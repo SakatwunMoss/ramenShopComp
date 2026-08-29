@@ -13,7 +13,7 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -25,9 +25,32 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build and deploy
+      - name: Build
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           NEXT_PUBLIC_ADSENSE_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_ADSENSE_CLIENT_ID }}
-        run: npm run deploy
+        run: npx opennextjs-cloudflare build
+
+      # Cloudflare API の一時的な 503 / connection reset に備えて deploy だけリトライ
+      - name: Deploy
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          NEXT_PUBLIC_ADSENSE_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_ADSENSE_CLIENT_ID }}
+        run: |
+          max_attempts=3
+          delay=20
+          for attempt in $(seq 1 "$max_attempts"); do
+            echo "Deploy attempt ${attempt}/${max_attempts}"
+            if npx opennextjs-cloudflare deploy; then
+              exit 0
+            fi
+            if [ "$attempt" -eq "$max_attempts" ]; then
+              echo "Deploy failed after ${max_attempts} attempts"
+              exit 1
+            fi
+            echo "Deploy failed (likely transient Cloudflare API error); retrying in ${delay}s..."
+            sleep "$delay"
+            delay=$((delay * 2))
+          done
