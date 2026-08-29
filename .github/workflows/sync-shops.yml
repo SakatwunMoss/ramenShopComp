@@ -1,0 +1,39 @@
+name: Sync HotPepper shops
+
+on:
+  schedule:
+    # 毎週月曜 03:00 JST (= 日曜 18:00 UTC)
+    - cron: "0 18 * * 0"
+  workflow_dispatch:
+    inputs:
+      area:
+        description: "大エリアコード（空なら全国）例: Z011"
+        required: false
+        default: ""
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Fetch and upsert shops
+        env:
+          HOTPEPPER_API_KEY: ${{ secrets.HOTPEPPER_API_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          if [ -n "${{ github.event.inputs.area }}" ]; then
+            npx tsx scripts/fetch-shops.ts --area=${{ github.event.inputs.area }}
+          else
+            npx tsx scripts/fetch-shops.ts
+          fi

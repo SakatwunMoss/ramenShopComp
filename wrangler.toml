@@ -1,0 +1,29 @@
+# Cloudflare Workers + OpenNext
+# KV / R2 はダッシュボードまたは wrangler で作成後、ID・名前を差し替えてください。
+#
+#   npx wrangler kv namespace create NEXT_INC_CACHE_KV
+#   npx wrangler r2 bucket create ramen-compare-assets
+#
+name = "ramen-compare"
+main = ".open-next/worker.js"
+compatibility_date = "2024-12-30"
+compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
+
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
+
+[[services]]
+binding = "WORKER_SELF_REFERENCE"
+service = "ramen-compare"
+
+# ページキャッシュ（ISR / fetch cache）
+[[kv_namespaces]]
+binding = "NEXT_INC_CACHE_KV"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+preview_id = "REPLACE_WITH_KV_PREVIEW_ID"
+
+# 大きい静的アセット用
+[[r2_buckets]]
+binding = "ASSETS_R2"
+bucket_name = "ramen-compare-assets"

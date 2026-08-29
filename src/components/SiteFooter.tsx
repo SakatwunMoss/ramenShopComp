@@ -1,0 +1,24 @@
+export function SiteFooter() {
+  return (
+    <footer className="mt-16 border-t border-line bg-ink text-steam">
+      <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-10 text-sm sm:px-6">
+        <p className="font-[family-name:var(--font-display)] text-base tracking-wide">
+          麺くらべ
+        </p>
+        <p className="max-w-2xl text-steam/70 leading-relaxed">
+          掲載データはホットペッパーグルメに公開されている店舗が対象です。個人経営の小規模店など、網羅できない場合があります。Powered by{" "}
+          <a
+            href="https://webservice.recruit.co.jp/"
+            className="underline decoration-steam/30 underline-offset-2 hover:decoration-steam"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            ホットペッパーグルメ Webサービス
+          </a>
+          .
+        </p>
+        <p className="text-steam/45">© {new Date().getFullYear()} 麺くらべ</p>
+      </div>
+    </footer>
+  );
+}
