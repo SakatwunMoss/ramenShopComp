@@ -10,21 +10,32 @@ on:
         description: "大エリアコード（空なら全国）例: Z011"
         required: false
         default: ""
+        type: string
+      dry_run:
+        description: "true の場合は API 取得のみ（D1 へ書き込まない）"
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "20"
           cache: npm
 
       - name: Install dependencies
         run: npm ci
+
+      # npm run fetch-shops が --env-file=.env.local を要求するため空ファイルを用意。
+      # 実値は下の env 経由で渡す。
+      - name: Prepare env file
+        run: touch .env.local
 
       - name: Fetch and upsert shops
         env:
@@ -33,8 +44,22 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
         run: |
-          if [ -n "${{ github.event.inputs.area }}" ]; then
-            npx tsx scripts/fetch-shops.ts --area=${{ github.event.inputs.area }}
-          else
-            npx tsx scripts/fetch-shops.ts
+          set -euo pipefail
+
+          ARGS=()
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            AREA="${{ github.event.inputs.area }}"
+            DRY_RUN="${{ github.event.inputs.dry_run }}"
+
+            if [ -n "$AREA" ]; then
+              ARGS+=(--area="$AREA")
+            fi
+
+            if [ "$DRY_RUN" = "true" ]; then
+              ARGS+=(--dry-run)
+            fi
           fi
+
+          echo "Running: npm run fetch-shops -- ${ARGS[*]:-}"
+          npm run fetch-shops -- "${ARGS[@]}"

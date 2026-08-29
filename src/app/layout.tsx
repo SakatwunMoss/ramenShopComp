@@ -5,8 +5,8 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "麺くらべ | 全国ラーメン店比較",
-    template: "%s | 麺くらべ",
+    default: "Ramen Compare | 全国ラーメン店比較",
+    template: "%s | Ramen Compare",
   },
   description:
     "全国のラーメン店をエリア・系統から比較・検索。ホットペッパーグルメ掲載店舗を中心に掲載しています。",

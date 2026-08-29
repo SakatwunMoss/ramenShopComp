@@ -12,7 +12,7 @@ export default function AboutPage() {
       </h1>
       <div className="mt-8 space-y-6 text-sm leading-relaxed text-ink-muted sm:text-base">
         <p>
-          <span className="text-ink">麺くらべ</span>{" "}
+          <span className="text-ink">Ramen Compare</span>{" "}
           は、全国のラーメン店をエリアや系統（味噌・醤油・豚骨など）で比較・検索するための個人開発サイトです。
         </p>
         <p>
