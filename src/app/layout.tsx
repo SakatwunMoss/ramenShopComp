@@ -63,6 +63,9 @@ export async function generateMetadata(): Promise<Metadata> {
       description: SITE_DESCRIPTION,
       images: [DEFAULT_OG_IMAGE],
     },
+    other: {
+      "google-adsense-account": "ca-pub-7938835154204291",
+    },
   };
 }
 
