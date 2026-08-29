@@ -313,10 +313,14 @@ export async function listLargeAreas(options?: {
 
     const labels = await getAreaLabelMap((results ?? []).map((r) => r.code));
 
-    return (results ?? []).map((row) => ({
-      ...row,
-      name: labels.get(row.code) ?? resolveLargeAreaName(row.code),
-    }));
+    return (results ?? []).map((row) => {
+      const code = row.code.trim();
+      return {
+        code,
+        count: row.count,
+        name: labels.get(code) ?? resolveLargeAreaName(code),
+      };
+    });
   } catch (err) {
     console.error("listLargeAreas error:", err);
     return [];
@@ -355,10 +359,14 @@ export async function listMiddleAreas(
       (results ?? []).map((r) => r.code),
     );
 
-    return (results ?? []).map((row) => ({
-      ...row,
-      name: labels.get(row.code) ?? row.code,
-    }));
+    return (results ?? []).map((row) => {
+      const code = row.code.trim();
+      return {
+        code,
+        count: row.count,
+        name: labels.get(code) ?? code,
+      };
+    });
   } catch (err) {
     console.error("listMiddleAreas error:", err);
     return [];

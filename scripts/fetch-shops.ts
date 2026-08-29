@@ -4,16 +4,20 @@
  * Usage:
  *   npm run fetch-shops                  # 全国（大エリアを順次）
  *   npm run fetch-shops -- --area=Z011   # 1エリアのみ
+ *   npm run fetch-shops -- --labels-only # エリア名のみ同期（店舗は更新しない）
  *   npm run fetch-shops -- --dry-run     # API取得のみ（書き込みなし）
+ *   npm run fetch-shops -- --local       # ローカル D1（wrangler）へ書き込み
  *
- * Required env (書き込み時):
+ * Required env:
  *   HOTPEPPER_API_KEY
- *   CLOUDFLARE_ACCOUNT_ID
- *   CLOUDFLARE_API_TOKEN   (D1 編集権限)
- *   CLOUDFLARE_D1_DATABASE_ID
+ *   （--local 以外の書き込み時）CLOUDFLARE_ACCOUNT_ID / CLOUDFLARE_API_TOKEN / CLOUDFLARE_D1_DATABASE_ID
  */
 
 import { randomUUID } from "node:crypto";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 const GOURMET_URL = "https://webservice.recruit.co.jp/hotpepper/gourmet/v1/";
 const LARGE_AREA_URL =
@@ -24,6 +28,9 @@ const KEYWORD = "ラーメン";
 const PAGE_SIZE = 100;
 const SLEEP_MS = 200;
 const UPSERT_CHUNK = 25;
+
+/** --local 時は wrangler 経由でローカル D1 に書く */
+let writeToLocalD1 = false;
 
 type LargeArea = { code: string; name: string };
 
@@ -109,11 +116,15 @@ function asArray<T>(value: T | T[] | undefined | null): T[] {
 function parseArgs(argv: string[]) {
   let area: string | undefined;
   let dryRun = false;
+  let labelsOnly = false;
+  let local = false;
   for (const arg of argv) {
     if (arg === "--dry-run") dryRun = true;
+    else if (arg === "--labels-only") labelsOnly = true;
+    else if (arg === "--local") local = true;
     else if (arg.startsWith("--area=")) area = arg.slice("--area=".length);
   }
-  return { area, dryRun };
+  return { area, dryRun, labelsOnly, local };
 }
 
 async function fetchJson<T>(url: URL): Promise<T> {
@@ -175,6 +186,9 @@ async function upsertAreaLabels(
 ) {
   if (rows.length === 0) return;
   if (dryRun) {
+    for (const row of rows) {
+      console.log(`  [dry-run] ${row.level} ${row.code} → ${row.name}`);
+    }
     console.log(`  [dry-run] would upsert ${rows.length} area labels`);
     return;
   }
@@ -282,9 +296,56 @@ function getD1Config() {
   return { accountId, apiToken, databaseId };
 }
 
+function sqlLiteral(value: unknown): string {
+  if (value === null || value === undefined) return "NULL";
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) {
+      throw new Error(`Invalid numeric SQL param: ${value}`);
+    }
+    return String(value);
+  }
+  if (typeof value === "boolean") return value ? "1" : "0";
+  return `'${String(value).replaceAll("'", "''")}'`;
+}
+
+function bindSql(sql: string, params: unknown[]): string {
+  let index = 0;
+  return sql.replaceAll("?", () => {
+    if (index >= params.length) {
+      throw new Error("Not enough SQL params for placeholders");
+    }
+    return sqlLiteral(params[index++]);
+  });
+}
+
+function d1BatchLocal(statements: { sql: string; params: unknown[] }[]) {
+  const dir = mkdtempSync(join(tmpdir(), "ramen-d1-"));
+  const file = join(dir, "batch.sql");
+  try {
+    const body = statements.map((s) => `${bindSql(s.sql, s.params)};`).join("\n");
+    writeFileSync(file, body, "utf8");
+    execFileSync(
+      "npx",
+      ["wrangler", "d1", "execute", "ramen-compare", "--local", "--file", file],
+      { stdio: "inherit" },
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
 async function d1Batch(
   statements: { sql: string; params: unknown[] }[],
 ): Promise<void> {
+  if (statements.length === 0) return;
+
+  if (writeToLocalD1) {
+    for (let i = 0; i < statements.length; i += UPSERT_CHUNK) {
+      d1BatchLocal(statements.slice(i, i + UPSERT_CHUNK));
+    }
+    return;
+  }
+
   const { accountId, apiToken, databaseId } = getD1Config();
   const endpoint = `https://api.cloudflare.com/client/v4/accounts/${accountId}/d1/database/${databaseId}/query`;
 
@@ -413,8 +474,13 @@ async function main() {
     process.exit(1);
   }
 
-  const { area: areaFilter, dryRun } = parseArgs(process.argv.slice(2));
+  const { area: areaFilter, dryRun, labelsOnly, local } = parseArgs(
+    process.argv.slice(2),
+  );
+  writeToLocalD1 = local;
   if (dryRun) console.log("Running in dry-run mode (no D1 writes)");
+  if (labelsOnly) console.log("Labels-only mode (skip shop upsert)");
+  if (local) console.log("Writing to local D1 via wrangler");
 
   const areas = await fetchLargeAreas(apiKey);
   console.log(`Large areas: ${areas.length}`);
@@ -436,11 +502,16 @@ async function main() {
   for (const area of targets) {
     await syncAreaLabelsForLarge(apiKey, area, dryRun);
     await sleep(SLEEP_MS);
+    if (labelsOnly) continue;
     grandTotal += await syncArea(apiKey, area, dryRun);
     await sleep(SLEEP_MS);
   }
 
-  console.log(`\nDone. Upserted ${grandTotal} shop rows.`);
+  if (labelsOnly) {
+    console.log(`\nDone. Synced area labels for ${targets.length} large area(s).`);
+  } else {
+    console.log(`\nDone. Upserted ${grandTotal} shop rows.`);
+  }
 }
 
 main().catch((err) => {
