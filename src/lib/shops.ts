@@ -288,7 +288,7 @@ export async function getShopsByIds(ids: string[]): Promise<Shop[]> {
 
 export async function listLargeAreas(options?: {
   ramenOnly?: boolean;
-}): Promise<{ code: string; count: number; name: string }[]> {
+}): Promise<AreaStat[]> {
   const db = await getDb();
   if (!db) return [];
 
@@ -311,9 +311,11 @@ export async function listLargeAreas(options?: {
       )
       .all<{ code: string; count: number }>();
 
+    const labels = await getAreaLabelMap((results ?? []).map((r) => r.code));
+
     return (results ?? []).map((row) => ({
       ...row,
-      name: resolveLargeAreaName(row.code),
+      name: labels.get(row.code) ?? resolveLargeAreaName(row.code),
     }));
   } catch (err) {
     console.error("listLargeAreas error:", err);
@@ -427,11 +429,13 @@ export async function getAreaLabel(code: string): Promise<string | null> {
 
 async function getAreaLabelMap(codes: string[]): Promise<Map<string, string>> {
   const map = new Map<string, string>();
-  for (const code of codes) {
+  const normalized = [...new Set(codes.map((c) => c.trim()).filter(Boolean))];
+
+  for (const code of normalized) {
     if (AREA_LABELS[code]) map.set(code, AREA_LABELS[code]);
   }
 
-  const missing = codes.filter((c) => !map.has(c));
+  const missing = normalized.filter((c) => !map.has(c));
   if (missing.length === 0) return map;
 
   const db = await getDb();

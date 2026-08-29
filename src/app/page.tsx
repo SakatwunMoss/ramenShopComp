@@ -14,7 +14,7 @@ import {
 import { getDb } from "@/lib/db";
 import { buildPageMetadata } from "@/lib/seo";
 import { SITE_DESCRIPTION, SHOPS_PAGE_SIZE } from "@/lib/site";
-import { listLargeAreas, listShopsPaginated } from "@/lib/shops";
+import { getAreaLabel, listLargeAreas, listShopsPaginated } from "@/lib/shops";
 
 export const dynamic = "force-dynamic";
 
@@ -46,7 +46,7 @@ export default async function HomePage({
   const db = await getDb();
   const hasDb = Boolean(db);
 
-  const [paginated, areas] = await Promise.all([
+  const [paginated, areas, selectedAreaLabel] = await Promise.all([
     listShopsPaginated(
       {
         area: params.area,
@@ -58,6 +58,7 @@ export default async function HomePage({
       SHOPS_PAGE_SIZE,
     ),
     listLargeAreas({ ramenOnly }),
+    params.area ? getAreaLabel(params.area) : Promise.resolve(null),
   ]);
 
   const { shops, total, totalPages } = paginated;
@@ -70,44 +71,44 @@ export default async function HomePage({
   return (
     <>
       <JsonLd data={jsonLd} />
-      <section className="relative isolate min-h-[min(100svh,40rem)] overflow-hidden sm:min-h-[min(100svh,44rem)]">
+      <section className="relative isolate aspect-[1584/672] w-full overflow-hidden">
         <Image
           src="/hero-ramen.png"
           alt="ラーメンの湯気と丼ぶり"
           fill
           priority
           sizes="100vw"
-          className="object-cover object-[center_35%] animate-[hero-zoom_18s_ease-in-out_infinite_alternate]"
+          className="object-cover object-center animate-[hero-zoom_18s_ease-in-out_infinite_alternate]"
         />
         <div
           aria-hidden
-          className="absolute inset-0 bg-gradient-to-r from-hero-shade/80 via-[#c47868]/45 to-[#e88976]/15"
+          className="absolute inset-0 bg-gradient-to-r from-hero-shade/75 via-[#c47868]/40 to-[#e88976]/15"
         />
         <div
           aria-hidden
-          className="absolute inset-0 bg-gradient-to-t from-hero-shade/55 via-transparent to-[#ffb5a3]/20"
+          className="absolute inset-0 bg-gradient-to-t from-hero-shade/60 via-transparent to-[#ffb5a3]/15"
         />
 
-        <div className="relative mx-auto flex min-h-[min(100svh,40rem)] max-w-6xl flex-col justify-end px-4 pb-14 pt-24 sm:min-h-[min(100svh,44rem)] sm:px-6 sm:pb-16">
-          <p className="animate-rise font-[family-name:var(--font-display)] text-5xl leading-none tracking-wide text-steam sm:text-7xl md:text-8xl">
+        <div className="relative mx-auto flex h-full max-w-6xl flex-col justify-end px-4 py-3 sm:px-6 sm:py-6 md:py-8">
+          <p className="animate-rise font-[family-name:var(--font-display)] text-2xl leading-none tracking-wide text-steam sm:text-5xl md:text-6xl">
             <span className="text-[#ffb4a4]">Ramen</span> Compare
           </p>
-          <h1 className="animate-rise-delay mt-5 max-w-xl text-xl font-medium leading-relaxed text-steam sm:text-2xl">
+          <h1 className="animate-rise-delay mt-1.5 max-w-xl text-xs font-medium leading-snug text-steam sm:mt-3 sm:text-lg md:text-xl">
             全国のラーメン店を、エリアと系統でくらべる。
           </h1>
-          <p className="animate-rise-delay mt-3 max-w-md text-sm leading-relaxed text-steam/80 sm:text-base">
+          <p className="animate-rise-delay mt-1 hidden max-w-md text-sm leading-relaxed text-steam/80 sm:mt-2 sm:block">
             気になる店を選んで横並び比較。次に行く一杯を、迷わず決める。
           </p>
-          <div className="animate-rise-delay mt-8 flex flex-wrap gap-3">
+          <div className="animate-rise-delay mt-2.5 flex flex-wrap gap-2 sm:mt-5 sm:gap-3">
             <a
               href="#shops"
-              className="bg-lacquer px-6 py-3 text-sm font-medium text-steam transition hover:bg-lacquer-deep"
+              className="bg-lacquer px-3.5 py-1.5 text-xs font-medium text-steam transition hover:bg-lacquer-deep sm:px-6 sm:py-2.5 sm:text-sm"
             >
               店舗を探す
             </a>
             <Link
               href="/areas"
-              className="border border-steam/40 bg-steam/15 px-6 py-3 text-sm text-steam backdrop-blur-sm transition hover:border-steam/80 hover:bg-steam/25"
+              className="border border-steam/40 bg-steam/15 px-3.5 py-1.5 text-xs text-steam backdrop-blur-sm transition hover:border-steam/80 hover:bg-steam/25 sm:px-6 sm:py-2.5 sm:text-sm"
             >
               エリアから探す
             </Link>
@@ -139,6 +140,7 @@ export default async function HomePage({
           <ShopFilters
             areas={areas}
             currentArea={params.area}
+            currentAreaName={selectedAreaLabel ?? undefined}
             currentStyle={params.style}
             currentQ={params.q}
             currentScope={ramenOnly ? "ramen" : "all"}

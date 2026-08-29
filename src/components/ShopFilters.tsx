@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { RAMEN_STYLES } from "@/lib/types";
-import { AREA_LABELS } from "@/lib/shops";
+import type { AreaStat } from "@/lib/shops";
 
 type Props = {
-  areas: { code: string; count: number }[];
+  areas: AreaStat[];
   currentArea?: string;
+  /** 選択中エリアの表示名（未指定時は areas から解決） */
+  currentAreaName?: string;
   currentStyle?: string;
   currentQ?: string;
   /** 省略時・"ramen" = ラーメン店のみ / "all" = キーワード該当すべて */
@@ -14,12 +16,17 @@ type Props = {
 export function ShopFilters({
   areas,
   currentArea,
+  currentAreaName: currentAreaNameProp,
   currentStyle,
   currentQ,
   currentScope = "ramen",
 }: Props) {
   const hasActive =
     currentArea || currentStyle || currentQ || currentScope === "all";
+  const currentAreaName =
+    currentAreaNameProp ??
+    areas.find((a) => a.code === currentArea)?.name ??
+    currentArea;
 
   return (
     <form
@@ -38,7 +45,7 @@ export function ShopFilters({
             <option value="">全国</option>
             {areas.map((a) => (
               <option key={a.code} value={a.code}>
-                {AREA_LABELS[a.code] ?? a.code}（{a.count}）
+                {a.name}（{a.count}）
               </option>
             ))}
           </select>
@@ -104,7 +111,7 @@ export function ShopFilters({
               href={`/areas/${currentArea}`}
               className="text-sm text-ink-muted underline-offset-2 hover:text-lacquer hover:underline"
             >
-              {AREA_LABELS[currentArea] ?? currentArea}
+              {currentAreaName}
               のエリアページを見る
             </Link>
           ) : (

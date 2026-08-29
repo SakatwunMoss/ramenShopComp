@@ -96,6 +96,7 @@ a {
     transform: scale(1);
   }
   to {
-    transform: scale(1.06);
+    /* 横幅が切れないよう控えめに */
+    transform: scale(1.02);
   }
 }
