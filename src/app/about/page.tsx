@@ -1,8 +1,12 @@
 import type { Metadata } from "next";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "このサイトについて",
-};
+  description:
+    "Ramen Compare（ramen-compare）は全国のラーメン店をエリア・系統で比較・検索するサイトです。データの出典や掲載範囲について説明します。",
+  path: "/about",
+});
 
 export default function AboutPage() {
   return (

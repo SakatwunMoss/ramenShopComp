@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ShopImage } from "@/components/ShopImage";
 import type { Shop } from "@/lib/types";
 import { AREA_LABELS } from "@/lib/shops";
 
@@ -41,20 +42,17 @@ export function ShopGrid({ shops, compare }: ShopGridProps) {
 
               <Link
                 href={detailHref}
-                className="block overflow-hidden bg-bg-deep"
+                className="relative block h-44 overflow-hidden bg-bg-deep"
               >
-                {shop.image_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={shop.image_url}
-                    alt=""
-                    className="h-44 w-full object-cover transition duration-500 group-hover:scale-[1.03]"
-                  />
-                ) : (
-                  <div className="flex h-44 w-full items-center justify-center font-[family-name:var(--font-display)] text-4xl text-lacquer/35">
-                    麺
-                  </div>
-                )}
+                <ShopImage
+                  src={shop.image_url}
+                  alt={`${shop.name}の店舗画像`}
+                  width={400}
+                  height={176}
+                  fill
+                  sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
+                  className="object-cover transition duration-500 group-hover:scale-[1.03]"
+                />
               </Link>
 
               <div className="flex flex-1 flex-col p-4">
@@ -65,7 +63,18 @@ export function ShopGrid({ shops, compare }: ShopGridProps) {
                   {areaLabel ? (
                     <div className="flex gap-2">
                       <dt className="shrink-0 text-ink-muted/70">エリア</dt>
-                      <dd>{areaLabel}</dd>
+                      <dd>
+                        {shop.large_area_code ? (
+                          <Link
+                            href={`/areas/${shop.large_area_code}`}
+                            className="hover:text-lacquer"
+                          >
+                            {areaLabel}
+                          </Link>
+                        ) : (
+                          areaLabel
+                        )}
+                      </dd>
                     </div>
                   ) : null}
                   <div className="flex gap-2">

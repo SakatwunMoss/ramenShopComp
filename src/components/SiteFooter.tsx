@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export function SiteFooter() {
   return (
     <footer className="mt-16 border-t border-line bg-[#c97868] text-steam">
@@ -16,6 +18,20 @@ export function SiteFooter() {
             ホットペッパーグルメ Webサービス
           </a>
           .
+        </p>
+        <p className="flex flex-wrap gap-4 text-steam/80">
+          <Link
+            href="/areas"
+            className="underline decoration-steam/40 underline-offset-2 hover:decoration-steam"
+          >
+            エリアから探す
+          </Link>
+          <Link
+            href="/about"
+            className="underline decoration-steam/40 underline-offset-2 hover:decoration-steam"
+          >
+            このサイトについて
+          </Link>
         </p>
         <p className="text-steam/55">© {new Date().getFullYear()} Ramen Compare</p>
       </div>

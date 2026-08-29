@@ -92,11 +92,37 @@ export function ShopFilters({
       </div>
 
       {hasActive && (
+        <div className="flex flex-wrap items-center gap-4">
+          <Link
+            href="/#shops"
+            className="text-sm text-lacquer underline-offset-2 hover:underline"
+          >
+            条件をクリア
+          </Link>
+          {currentArea ? (
+            <Link
+              href={`/areas/${currentArea}`}
+              className="text-sm text-ink-muted underline-offset-2 hover:text-lacquer hover:underline"
+            >
+              {AREA_LABELS[currentArea] ?? currentArea}
+              のエリアページを見る
+            </Link>
+          ) : (
+            <Link
+              href="/areas"
+              className="text-sm text-ink-muted underline-offset-2 hover:text-lacquer hover:underline"
+            >
+              エリア別ページ一覧
+            </Link>
+          )}
+        </div>
+      )}
+      {!hasActive && (
         <Link
-          href="/#shops"
-          className="text-sm text-lacquer underline-offset-2 hover:underline"
+          href="/areas"
+          className="text-sm text-ink-muted underline-offset-2 hover:text-lacquer hover:underline"
         >
-          条件をクリア
+          エリア別ページから探す
         </Link>
       )}
     </form>

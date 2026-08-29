@@ -13,6 +13,8 @@
     "fetch-shops": "tsx --env-file=.env.local scripts/fetch-shops.ts"
   },
   "dependencies": {
+    "@fontsource/shippori-mincho": "^5.3.0",
+    "@fontsource/zen-kaku-gothic-new": "^5.3.0",
     "next": "16.3.3",
     "react": "19.2.8",
     "react-dom": "19.2.8"

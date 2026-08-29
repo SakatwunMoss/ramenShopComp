@@ -31,6 +31,10 @@ export async function generateMetadata({
     alternates: {
       canonical: comparePagePath(ids),
     },
+    robots: {
+      index: false,
+      follow: false,
+    },
   };
 }
 

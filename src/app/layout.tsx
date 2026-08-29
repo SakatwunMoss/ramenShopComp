@@ -2,11 +2,25 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
+import {
+  DEFAULT_OG_IMAGE,
+  DEFAULT_OG_IMAGE_HEIGHT,
+  DEFAULT_OG_IMAGE_WIDTH,
+  SITE_DESCRIPTION,
+  SITE_DISPLAY_NAME,
+  SITE_TITLE_DEFAULT,
+} from "@/lib/site";
+import "@fontsource/shippori-mincho/japanese-500.css";
+import "@fontsource/shippori-mincho/japanese-700.css";
+import "@fontsource/shippori-mincho/latin-500.css";
+import "@fontsource/shippori-mincho/latin-700.css";
+import "@fontsource/zen-kaku-gothic-new/japanese-400.css";
+import "@fontsource/zen-kaku-gothic-new/japanese-500.css";
+import "@fontsource/zen-kaku-gothic-new/japanese-700.css";
+import "@fontsource/zen-kaku-gothic-new/latin-400.css";
+import "@fontsource/zen-kaku-gothic-new/latin-500.css";
+import "@fontsource/zen-kaku-gothic-new/latin-700.css";
 import "./globals.css";
-
-const siteTitle = "Ramen Compare | 全国ラーメン店比較";
-const siteDescription =
-  "全国のラーメン店をエリア・系統から比較・検索。ホットペッパーグルメ掲載店舗を中心に掲載しています。";
 
 export async function generateMetadata(): Promise<Metadata> {
   const headerList = await headers();
@@ -24,30 +38,30 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     metadataBase,
     title: {
-      default: siteTitle,
-      template: "%s | Ramen Compare",
+      default: SITE_TITLE_DEFAULT,
+      template: `%s｜ramen-compare`,
     },
-    description: siteDescription,
+    description: SITE_DESCRIPTION,
     openGraph: {
-      title: siteTitle,
-      description: siteDescription,
-      siteName: "Ramen Compare",
+      title: SITE_TITLE_DEFAULT,
+      description: SITE_DESCRIPTION,
+      siteName: SITE_DISPLAY_NAME,
       locale: "ja_JP",
       type: "website",
       images: [
         {
-          url: "/hero-ramen.png",
-          width: 1584,
-          height: 672,
-          alt: "Ramen Compare",
+          url: DEFAULT_OG_IMAGE,
+          width: DEFAULT_OG_IMAGE_WIDTH,
+          height: DEFAULT_OG_IMAGE_HEIGHT,
+          alt: SITE_DISPLAY_NAME,
         },
       ],
     },
     twitter: {
       card: "summary_large_image",
-      title: siteTitle,
-      description: siteDescription,
-      images: ["/hero-ramen.png"],
+      title: SITE_TITLE_DEFAULT,
+      description: SITE_DESCRIPTION,
+      images: [DEFAULT_OG_IMAGE],
     },
   };
 }
@@ -55,18 +69,6 @@ export async function generateMetadata(): Promise<Metadata> {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="ja" className="h-full antialiased">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin="anonymous"
-        />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap"
-          rel="stylesheet"
-        />
-      </head>
       <body className="flex min-h-full flex-col">
         <SiteHeader />
         <main className="flex-1">{children}</main>

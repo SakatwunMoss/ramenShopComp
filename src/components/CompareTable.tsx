@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { ShopImage } from "@/components/ShopImage";
 import { AREA_LABELS } from "@/lib/shops";
 import type { Shop } from "@/lib/types";
 
@@ -11,21 +12,16 @@ type CompareRow = {
   isMultiline?: boolean;
 };
 
-function ShopImage({ shop }: { shop: Shop }) {
+function CompareShopImage({ shop }: { shop: Shop }) {
   return (
     <div className="flex justify-center">
-      {shop.image_url ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={shop.image_url}
-          alt={`${shop.name}の画像`}
-          className="h-[120px] w-[120px] object-cover"
-        />
-      ) : (
-        <div className="flex h-[120px] w-[120px] items-center justify-center bg-bg-deep font-[family-name:var(--font-display)] text-3xl text-lacquer/35">
-          麺
-        </div>
-      )}
+      <ShopImage
+        src={shop.image_url}
+        alt={`${shop.name}の店舗画像`}
+        width={120}
+        height={120}
+        className="h-[120px] w-[120px] object-cover"
+      />
     </div>
   );
 }
@@ -40,7 +36,7 @@ const COMPARE_ROWS: CompareRow[] = [
     key: "image",
     label: "画像",
     isImage: true,
-    render: (shop) => <ShopImage shop={shop} />,
+    render: (shop) => <CompareShopImage shop={shop} />,
   },
   {
     key: "name",

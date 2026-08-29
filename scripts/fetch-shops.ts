@@ -18,12 +18,27 @@ import { randomUUID } from "node:crypto";
 const GOURMET_URL = "https://webservice.recruit.co.jp/hotpepper/gourmet/v1/";
 const LARGE_AREA_URL =
   "https://webservice.recruit.co.jp/hotpepper/large_area/v1/";
+const MIDDLE_AREA_URL =
+  "https://webservice.recruit.co.jp/hotpepper/middle_area/v1/";
 const KEYWORD = "ラーメン";
 const PAGE_SIZE = 100;
 const SLEEP_MS = 200;
 const UPSERT_CHUNK = 25;
 
 type LargeArea = { code: string; name: string };
+
+type MiddleArea = {
+  code: string;
+  name: string;
+  large_area?: { code?: string; name?: string };
+};
+
+type MiddleAreaResponse = {
+  results: {
+    middle_area?: MiddleArea | MiddleArea[];
+    error?: { message?: string }[];
+  };
+};
 
 type HotpepperShop = {
   id: string;
@@ -120,6 +135,87 @@ async function fetchLargeAreas(apiKey: string): Promise<LargeArea[]> {
     );
   }
   return asArray(data.results.large_area);
+}
+
+async function fetchMiddleAreas(
+  apiKey: string,
+  largeAreaCode: string,
+): Promise<MiddleArea[]> {
+  const url = new URL(MIDDLE_AREA_URL);
+  url.searchParams.set("key", apiKey);
+  url.searchParams.set("format", "json");
+  url.searchParams.set("large_area", largeAreaCode);
+  const data = await fetchJson<MiddleAreaResponse>(url);
+  if (data.results.error?.length) {
+    throw new Error(
+      `middle_area API error: ${data.results.error.map((e) => e.message).join(", ")}`,
+    );
+  }
+  return asArray(data.results.middle_area);
+}
+
+const UPSERT_AREA_LABEL_SQL = `
+INSERT INTO area_labels (code, name, parent_code, level, updated_at)
+VALUES (?, ?, ?, ?, ?)
+ON CONFLICT(code) DO UPDATE SET
+  name = excluded.name,
+  parent_code = excluded.parent_code,
+  level = excluded.level,
+  updated_at = excluded.updated_at
+`;
+
+async function upsertAreaLabels(
+  rows: {
+    code: string;
+    name: string;
+    parent_code: string | null;
+    level: "large" | "middle";
+  }[],
+  dryRun: boolean,
+) {
+  if (rows.length === 0) return;
+  if (dryRun) {
+    console.log(`  [dry-run] would upsert ${rows.length} area labels`);
+    return;
+  }
+
+  const now = new Date().toISOString();
+  await d1Batch(
+    rows.map((row) => ({
+      sql: UPSERT_AREA_LABEL_SQL,
+      params: [row.code, row.name, row.parent_code, row.level, now],
+    })),
+  );
+}
+
+async function syncAreaLabelsForLarge(
+  apiKey: string,
+  area: LargeArea,
+  dryRun: boolean,
+) {
+  await upsertAreaLabels(
+    [
+      {
+        code: area.code,
+        name: area.name,
+        parent_code: null,
+        level: "large",
+      },
+    ],
+    dryRun,
+  );
+
+  const middle = await fetchMiddleAreas(apiKey, area.code);
+  await upsertAreaLabels(
+    middle.map((m) => ({
+      code: m.code,
+      name: m.name,
+      parent_code: m.large_area?.code ?? area.code,
+      level: "middle" as const,
+    })),
+    dryRun,
+  );
+  console.log(`  area labels: large=1 middle=${middle.length}`);
 }
 
 async function fetchShopsPage(
@@ -338,6 +434,8 @@ async function main() {
 
   let grandTotal = 0;
   for (const area of targets) {
+    await syncAreaLabelsForLarge(apiKey, area, dryRun);
+    await sleep(SLEEP_MS);
     grandTotal += await syncArea(apiKey, area, dryRun);
     await sleep(SLEEP_MS);
   }

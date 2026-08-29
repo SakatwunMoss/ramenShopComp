@@ -2,7 +2,27 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AdSenseSlot } from "@/components/AdSenseSlot";
-import { AREA_LABELS, getShopById } from "@/lib/shops";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { JsonLd } from "@/components/JsonLd";
+import { ShopImage } from "@/components/ShopImage";
+import {
+  buildBreadcrumbNode,
+  buildJsonLdGraph,
+  buildRestaurantNode,
+  type BreadcrumbItem,
+} from "@/lib/json-ld";
+import {
+  areaLargePath,
+  areaMiddlePath,
+  buildPageMetadata,
+  shopDetailPath,
+  shopOgImage,
+} from "@/lib/seo";
+import {
+  AREA_LABELS,
+  getAreaLabel,
+  getShopById,
+} from "@/lib/shops";
 
 export const dynamic = "force-dynamic";
 
@@ -14,10 +34,31 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const shop = await getShopById(id);
   if (!shop) return { title: "店舗が見つかりません" };
-  return {
-    title: shop.name,
-    description: `${shop.name}の住所・営業時間・アクセス情報。`,
-  };
+
+  const areaLabel = shop.large_area_code
+    ? (AREA_LABELS[shop.large_area_code] ??
+      (await getAreaLabel(shop.large_area_code)) ??
+      shop.large_area_code)
+    : null;
+
+  const title = areaLabel
+    ? `${shop.name} - ${areaLabel}のラーメン店`
+    : `${shop.name}のラーメン店情報`;
+
+  const descriptionParts = [
+    `${shop.name}の住所・営業時間・アクセス情報。`,
+    areaLabel ? `${areaLabel}のラーメン店を比較できます。` : null,
+    shop.genre ? `ジャンル: ${shop.genre}。` : null,
+    shop.budget ? `予算目安: ${shop.budget}。` : null,
+  ].filter(Boolean);
+
+  return buildPageMetadata({
+    title,
+    description: descriptionParts.join(""),
+    path: shopDetailPath(shop.id),
+    image: shopOgImage(shop),
+    imageAlt: `${shop.name}の店舗画像`,
+  });
 }
 
 export default async function ShopDetailPage({ params }: Props) {
@@ -32,23 +73,46 @@ export default async function ShopDetailPage({ params }: Props) {
         ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(shop.address)}`
         : null;
 
-  const areaLabel = shop.large_area_code
-    ? (AREA_LABELS[shop.large_area_code] ?? shop.large_area_code)
+  const largeLabel = shop.large_area_code
+    ? (AREA_LABELS[shop.large_area_code] ??
+      (await getAreaLabel(shop.large_area_code)) ??
+      shop.large_area_code)
     : null;
+  const middleLabel = shop.middle_area_code
+    ? ((await getAreaLabel(shop.middle_area_code)) ?? shop.middle_area_code)
+    : null;
+
+  const crumbs: BreadcrumbItem[] = [{ name: "トップ", path: "/" }];
+  if (shop.large_area_code && largeLabel) {
+    crumbs.push({
+      name: largeLabel,
+      path: areaLargePath(shop.large_area_code),
+    });
+  }
+  if (shop.large_area_code && shop.middle_area_code && middleLabel) {
+    crumbs.push({
+      name: middleLabel,
+      path: areaMiddlePath(shop.large_area_code, shop.middle_area_code),
+    });
+  }
+  crumbs.push({ name: shop.name, path: shopDetailPath(shop.id) });
+
+  const path = shopDetailPath(shop.id);
+  const jsonLd = buildJsonLdGraph([
+    buildRestaurantNode(shop, path),
+    buildBreadcrumbNode(crumbs),
+  ]);
 
   return (
     <article className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
-      <Link
-        href="/#shops"
-        className="text-sm text-ink-muted transition hover:text-lacquer"
-      >
-        ← 一覧へ戻る
-      </Link>
+      <JsonLd data={jsonLd} />
+      <Breadcrumbs items={crumbs} />
 
       <div className="mt-6 grid gap-10 lg:grid-cols-[1.2fr_0.8fr]">
         <div>
           <p className="text-sm tracking-wide text-lacquer">
-            {[areaLabel, shop.genre].filter(Boolean).join(" / ") || "ラーメン"}
+            {[largeLabel, middleLabel, shop.genre].filter(Boolean).join(" / ") ||
+              "ラーメン"}
           </p>
           <h1 className="mt-2 font-[family-name:var(--font-display)] text-3xl leading-snug tracking-wide sm:text-4xl">
             {shop.name}
@@ -95,22 +159,45 @@ export default async function ShopDetailPage({ params }: Props) {
               </a>
             )}
           </div>
+
+          {shop.large_area_code && largeLabel && (
+            <p className="mt-8 text-sm text-ink-muted">
+              <Link
+                href={areaLargePath(shop.large_area_code)}
+                className="text-lacquer underline-offset-2 hover:underline"
+              >
+                {largeLabel}のラーメン店一覧
+              </Link>
+              {shop.middle_area_code && middleLabel ? (
+                <>
+                  {" · "}
+                  <Link
+                    href={areaMiddlePath(
+                      shop.large_area_code,
+                      shop.middle_area_code,
+                    )}
+                    className="text-lacquer underline-offset-2 hover:underline"
+                  >
+                    {middleLabel}の一覧
+                  </Link>
+                </>
+              ) : null}
+            </p>
+          )}
         </div>
 
         <div className="space-y-6">
-          <div className="aspect-[4/3] overflow-hidden bg-bg-deep">
-            {shop.image_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={shop.image_url}
-                alt={shop.name}
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <div className="flex h-full items-center justify-center font-[family-name:var(--font-display)] text-5xl text-lacquer/30">
-                麺
-              </div>
-            )}
+          <div className="relative aspect-[4/3] overflow-hidden bg-bg-deep">
+            <ShopImage
+              src={shop.image_url}
+              alt={`${shop.name}の店舗画像`}
+              width={800}
+              height={600}
+              fill
+              sizes="(max-width: 1024px) 100vw, 40vw"
+              className="object-cover"
+              priority
+            />
           </div>
 
           {shop.lat != null && shop.lng != null && (

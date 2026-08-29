@@ -1,9 +1,20 @@
+import type { Metadata } from "next";
 import Image from "next/image";
+import Link from "next/link";
 import { AdSenseSlot } from "@/components/AdSenseSlot";
+import { JsonLd } from "@/components/JsonLd";
+import { Pagination } from "@/components/Pagination";
 import { ShopCompareGrid } from "@/components/ShopCompareGrid";
 import { ShopFilters } from "@/components/ShopFilters";
+import {
+  buildBreadcrumbNode,
+  buildItemListNode,
+  buildJsonLdGraph,
+} from "@/lib/json-ld";
 import { getDb } from "@/lib/db";
-import { listLargeAreas, listShops } from "@/lib/shops";
+import { buildPageMetadata } from "@/lib/seo";
+import { SITE_DESCRIPTION, SHOPS_PAGE_SIZE } from "@/lib/site";
+import { listLargeAreas, listShopsPaginated } from "@/lib/shops";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +23,17 @@ type SearchParams = Promise<{
   style?: string;
   q?: string;
   scope?: string;
+  page?: string;
 }>;
+
+export async function generateMetadata(): Promise<Metadata> {
+  return buildPageMetadata({
+    title: "全国ラーメン店比較｜エリア・系統でくらべる",
+    description: SITE_DESCRIPTION,
+    path: "/",
+    absoluteTitle: true,
+  });
+}
 
 export default async function HomePage({
   searchParams,
@@ -21,24 +42,38 @@ export default async function HomePage({
 }) {
   const params = await searchParams;
   const ramenOnly = params.scope !== "all";
+  const page = Math.max(1, Number(params.page) || 1);
   const db = await getDb();
   const hasDb = Boolean(db);
-  const [shops, areas] = await Promise.all([
-    listShops({
-      area: params.area,
-      style: params.style,
-      q: params.q,
-      ramenOnly,
-    }),
+
+  const [paginated, areas] = await Promise.all([
+    listShopsPaginated(
+      {
+        area: params.area,
+        style: params.style,
+        q: params.q,
+        ramenOnly,
+      },
+      page,
+      SHOPS_PAGE_SIZE,
+    ),
     listLargeAreas({ ramenOnly }),
+  ]);
+
+  const { shops, total, totalPages } = paginated;
+
+  const jsonLd = buildJsonLdGraph([
+    buildBreadcrumbNode([{ name: "トップ", path: "/" }]),
+    buildItemListNode(shops, "/", "全国のラーメン店一覧"),
   ]);
 
   return (
     <>
+      <JsonLd data={jsonLd} />
       <section className="relative isolate min-h-[min(100svh,40rem)] overflow-hidden sm:min-h-[min(100svh,44rem)]">
         <Image
           src="/hero-ramen.png"
-          alt=""
+          alt="ラーメンの湯気と丼ぶり"
           fill
           priority
           sizes="100vw"
@@ -70,12 +105,12 @@ export default async function HomePage({
             >
               店舗を探す
             </a>
-            <a
-              href="/about"
+            <Link
+              href="/areas"
               className="border border-steam/40 bg-steam/15 px-6 py-3 text-sm text-steam backdrop-blur-sm transition hover:border-steam/80 hover:bg-steam/25"
             >
-              データの出典について
-            </a>
+              エリアから探す
+            </Link>
           </div>
         </div>
       </section>
@@ -90,10 +125,15 @@ export default async function HomePage({
                 店舗一覧
               </h2>
               <p className="mt-1 text-sm text-ink-muted">
-                最大3店舗まで選んでくらべられます
+                {total > 0
+                  ? `${total.toLocaleString("ja-JP")} 件のラーメン店から最大3店舗まで選んでくらべられます`
+                  : "最大3店舗まで選んでくらべられます"}
               </p>
             </div>
-            <p className="text-sm text-ink-muted">{shops.length} 件表示</p>
+            <p className="text-sm text-ink-muted">
+              {shops.length} 件表示
+              {totalPages > 1 ? `（${page}/${totalPages}）` : ""}
+            </p>
           </div>
 
           <ShopFilters
@@ -103,6 +143,16 @@ export default async function HomePage({
             currentQ={params.q}
             currentScope={ramenOnly ? "ramen" : "all"}
           />
+
+          {areas.length > 0 && (
+            <p className="mt-4 text-sm text-ink-muted">
+              エリア別の一覧は{" "}
+              <Link href="/areas" className="text-lacquer underline-offset-2 hover:underline">
+                エリアから探す
+              </Link>
+              からも閲覧できます。
+            </p>
+          )}
 
           {!hasDb && (
             <p className="mt-8 border border-line bg-steam/80 px-4 py-6 text-sm leading-relaxed text-ink-muted">
@@ -131,6 +181,18 @@ export default async function HomePage({
           )}
 
           {shops.length > 0 && <ShopCompareGrid shops={shops} />}
+
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            basePath="/#shops"
+            searchParams={{
+              area: params.area,
+              style: params.style,
+              q: params.q,
+              scope: params.scope,
+            }}
+          />
 
           <AdSenseSlot className="mt-12" slot="home-bottom" />
         </section>
