@@ -55,7 +55,7 @@ export default async function HomePage({
 
         <div className="relative mx-auto flex min-h-[min(100svh,40rem)] max-w-6xl flex-col justify-end px-4 pb-14 pt-24 sm:min-h-[min(100svh,44rem)] sm:px-6 sm:pb-16">
           <p className="animate-rise font-[family-name:var(--font-display)] text-5xl leading-none tracking-wide text-steam sm:text-7xl md:text-8xl">
-            <span className="text-[#ffb4a4]">麺</span>くらべ
+            <span className="text-[#ffb4a4]">Ramen</span> Compare
           </p>
           <h1 className="animate-rise-delay mt-5 max-w-xl text-xl font-medium leading-relaxed text-steam sm:text-2xl">
             全国のラーメン店を、エリアと系統でくらべる。
