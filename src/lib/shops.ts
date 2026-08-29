@@ -1,4 +1,4 @@
-import { createServerSupabaseClient } from "./supabase";
+import { getDb } from "./db";
 import {
   RAMEN_STYLES,
   type RamenStyleId,
@@ -9,92 +9,177 @@ export type ShopFilters = {
   area?: string;
   style?: RamenStyleId | string;
   q?: string;
+  /** false のとき HotPepper キーワード該当をすべて表示（居酒屋等を含む） */
+  ramenOnly?: boolean;
 };
+
+/** ラーメン店らしいレコードに寄せる（ジャンル or 店名） */
+const RAMEN_SCOPE_SQL = `(
+  IFNULL(genre, '') LIKE '%ラーメン%'
+  OR name LIKE '%ラーメン%'
+  OR name LIKE '%らーめん%'
+  OR name LIKE '%らあめん%'
+  OR name LIKE '%拉麺%'
+  OR name LIKE '%つけ麺%'
+  OR name LIKE '%つけめん%'
+  OR name LIKE '%麺屋%'
+  OR name LIKE '%麺処%'
+  OR name LIKE '%麺場%'
+)`;
+
+function pushRamenScope(
+  clauses: string[],
+  ramenOnly: boolean | undefined,
+) {
+  if (ramenOnly !== false) {
+    clauses.push(RAMEN_SCOPE_SQL);
+  }
+}
 
 export async function listShops(
   filters: ShopFilters = {},
   limit = 48,
 ): Promise<Shop[]> {
-  const supabase = createServerSupabaseClient();
-  if (!supabase) return [];
+  const db = await getDb();
+  if (!db) return [];
 
-  let query = supabase
-    .from("shops")
-    .select("*")
-    .order("updated_at", { ascending: false })
-    .limit(limit);
+  const clauses: string[] = [];
+  const params: unknown[] = [];
+
+  pushRamenScope(clauses, filters.ramenOnly);
 
   if (filters.area) {
-    query = query.eq("large_area_code", filters.area);
+    clauses.push("large_area_code = ?");
+    params.push(filters.area);
   }
 
   if (filters.q) {
-    query = query.ilike("name", `%${filters.q}%`);
+    clauses.push("name LIKE ?");
+    params.push(`%${filters.q}%`);
   }
-
-  const { data, error } = await query;
-  if (error) {
-    console.error("listShops error:", error.message);
-    return [];
-  }
-
-  let shops = (data ?? []) as Shop[];
 
   if (filters.style) {
     const style = RAMEN_STYLES.find((s) => s.id === filters.style);
     if (style) {
-      shops = shops.filter((shop) => {
-        const haystack = `${shop.name} ${shop.genre ?? ""} ${shop.access ?? ""}`;
-        return style.keywords.some((kw) => haystack.includes(kw));
-      });
+      const ors = style.keywords
+        .map(
+          () =>
+            "(name LIKE ? OR IFNULL(genre,'') LIKE ? OR IFNULL(access,'') LIKE ?)",
+        )
+        .join(" OR ");
+      clauses.push(`(${ors})`);
+      for (const kw of style.keywords) {
+        const like = `%${kw}%`;
+        params.push(like, like, like);
+      }
     }
   }
 
-  return shops;
+  const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
+  const fetchLimit = filters.style ? Math.max(limit * 3, 120) : limit;
+  params.push(fetchLimit);
+
+  const sql = `
+    SELECT * FROM shops
+    ${where}
+    ORDER BY updated_at DESC
+    LIMIT ?
+  `;
+
+  try {
+    const { results } = await db.prepare(sql).bind(...params).all<Shop>();
+    let shops = results ?? [];
+
+    if (filters.style) {
+      const style = RAMEN_STYLES.find((s) => s.id === filters.style);
+      if (style) {
+        shops = shops
+          .filter((shop) => {
+            const haystack = `${shop.name} ${shop.genre ?? ""} ${shop.access ?? ""}`;
+            return style.keywords.some((kw) => haystack.includes(kw));
+          })
+          .slice(0, limit);
+      }
+    }
+
+    return shops;
+  } catch (err) {
+    console.error("listShops error:", err);
+    return [];
+  }
 }
 
 export async function getShopById(id: string): Promise<Shop | null> {
-  const supabase = createServerSupabaseClient();
-  if (!supabase) return null;
+  const db = await getDb();
+  if (!db) return null;
 
-  const { data, error } = await supabase
-    .from("shops")
-    .select("*")
-    .eq("id", id)
-    .maybeSingle();
-
-  if (error) {
-    console.error("getShopById error:", error.message);
+  try {
+    return await db
+      .prepare("SELECT * FROM shops WHERE id = ? LIMIT 1")
+      .bind(id)
+      .first<Shop>();
+  } catch (err) {
+    console.error("getShopById error:", err);
     return null;
   }
-  return data as Shop | null;
 }
 
-export async function listLargeAreas(): Promise<
-  { code: string; count: number }[]
-> {
-  const supabase = createServerSupabaseClient();
-  if (!supabase) return [];
+/** URL の id 順を保って複数店舗を取得する */
+export async function getShopsByIds(ids: string[]): Promise<Shop[]> {
+  if (ids.length === 0) return [];
 
-  const { data, error } = await supabase
-    .from("shops")
-    .select("large_area_code")
-    .not("large_area_code", "is", null);
+  const db = await getDb();
+  if (!db) return [];
 
-  if (error || !data) return [];
+  const placeholders = ids.map(() => "?").join(", ");
+  try {
+    const { results } = await db
+      .prepare(`SELECT * FROM shops WHERE id IN (${placeholders})`)
+      .bind(...ids)
+      .all<Shop>();
 
-  const counts = new Map<string, number>();
-  for (const row of data as { large_area_code: string | null }[]) {
-    if (!row.large_area_code) continue;
-    counts.set(
-      row.large_area_code,
-      (counts.get(row.large_area_code) ?? 0) + 1,
-    );
+    const byId = new Map((results ?? []).map((shop) => [shop.id, shop]));
+    const ordered: Shop[] = [];
+    for (const id of ids) {
+      const shop = byId.get(id);
+      if (shop) ordered.push(shop);
+    }
+    return ordered;
+  } catch (err) {
+    console.error("getShopsByIds error:", err);
+    return [];
   }
+}
 
-  return [...counts.entries()]
-    .map(([code, count]) => ({ code, count }))
-    .sort((a, b) => b.count - a.count);
+export async function listLargeAreas(options?: {
+  ramenOnly?: boolean;
+}): Promise<{ code: string; count: number }[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  const clauses = [
+    "large_area_code IS NOT NULL",
+    "large_area_code != ''",
+  ];
+  pushRamenScope(clauses, options?.ramenOnly);
+
+  try {
+    const { results } = await db
+      .prepare(
+        `
+        SELECT large_area_code AS code, COUNT(*) AS count
+        FROM shops
+        WHERE ${clauses.join(" AND ")}
+        GROUP BY large_area_code
+        ORDER BY count DESC
+      `,
+      )
+      .all<{ code: string; count: number }>();
+    return results ?? [];
+  } catch (err) {
+    console.error("listLargeAreas error:", err);
+    return [];
+  }
 }
 
 /** 表示用の主要大エリアラベル（コード→地名） */

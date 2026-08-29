@@ -7,6 +7,8 @@ type Props = {
   currentArea?: string;
   currentStyle?: string;
   currentQ?: string;
+  /** 省略時・"ramen" = ラーメン店のみ / "all" = キーワード該当すべて */
+  currentScope?: string;
 };
 
 export function ShopFilters({
@@ -14,7 +16,11 @@ export function ShopFilters({
   currentArea,
   currentStyle,
   currentQ,
+  currentScope = "ramen",
 }: Props) {
+  const hasActive =
+    currentArea || currentStyle || currentQ || currentScope === "all";
+
   return (
     <form
       method="get"
@@ -54,6 +60,18 @@ export function ShopFilters({
           </select>
         </label>
 
+        <label className="flex min-w-[160px] flex-1 flex-col gap-1 text-xs tracking-wider text-ink-muted uppercase">
+          対象
+          <select
+            name="scope"
+            defaultValue={currentScope === "all" ? "all" : "ramen"}
+            className="h-11 border border-line bg-steam px-3 text-sm text-ink outline-none focus:border-lacquer"
+          >
+            <option value="ramen">ラーメン店のみ</option>
+            <option value="all">キーワード該当すべて</option>
+          </select>
+        </label>
+
         <label className="flex min-w-[180px] flex-[2] flex-col gap-1 text-xs tracking-wider text-ink-muted uppercase">
           店名
           <input
@@ -73,8 +91,11 @@ export function ShopFilters({
         </button>
       </div>
 
-      {(currentArea || currentStyle || currentQ) && (
-        <Link href="/#shops" className="text-sm text-lacquer underline-offset-2 hover:underline">
+      {hasActive && (
+        <Link
+          href="/#shops"
+          className="text-sm text-lacquer underline-offset-2 hover:underline"
+        >
           条件をクリア
         </Link>
       )}

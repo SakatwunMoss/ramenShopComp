@@ -1,6 +1,6 @@
 # 麺くらべ（ramen-compare）
 
-全国のラーメン店をエリア・系統で比較・検索するサイト。Next.js（App Router）+ Supabase + HotPepper API + Cloudflare Workers。
+全国のラーメン店をエリア・系統で比較・検索するサイト。Next.js（App Router）+ **Cloudflare D1** + HotPepper API + Cloudflare Workers。
 
 > 掲載データはホットペッパーグルメ掲載店のみが対象です。個人経営の小規模店は網羅できない場合があります。
 
@@ -8,7 +8,7 @@
 
 - TypeScript / Next.js (App Router) / Tailwind CSS
 - ホスティング: **Cloudflare Workers**（`@opennextjs/cloudflare`）
-- DB: Supabase（Tokyo 推奨）
+- DB: **Cloudflare D1**（SQLite・無料枠あり）
 - データ取得: HotPepper グルメサーチ API
 - バッチ: GitHub Actions（週次）+ ローカル `npm run fetch-shops`
 
@@ -21,21 +21,31 @@ npm install
 cp .env.local.example .env.local
 ```
 
-### 2. 環境変数（`.env.local`）
+### 2. Cloudflare D1
+
+```bash
+# ログイン（未済の場合）
+npx wrangler login
+
+# DB 作成 → 出力の database_id を wrangler.toml に貼る
+npx wrangler d1 create ramen-compare
+
+# スキーマ適用（ローカル / リモート）
+npx wrangler d1 migrations apply DB --local
+npx wrangler d1 migrations apply DB --remote
+```
+
+### 3. 環境変数（`.env.local`）
 
 | 変数 | 用途 |
 |------|------|
 | `HOTPEPPER_API_KEY` | HotPepper API キー |
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase プロジェクト URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | anon（公開読み取り） |
-| `SUPABASE_SERVICE_ROLE_KEY` | バッチ書き込み専用（公開しない） |
+| `CLOUDFLARE_ACCOUNT_ID` | アカウント ID（ダッシュボード） |
+| `CLOUDFLARE_API_TOKEN` | D1 編集権限付き API Token |
+| `CLOUDFLARE_D1_DATABASE_ID` | D1 の database_id |
 | `NEXT_PUBLIC_ADSENSE_CLIENT_ID` | AdSense（任意） |
 
-### 3. Supabase
-
-1. Tokyo リージョンでプロジェクト作成
-2. SQL Editor で `supabase/migrations/001_create_shops.sql` を実行
-3. URL / anon key / service role key を `.env.local` に記入
+アプリ本体の読み取りは Workers の D1 バインディング経由です（公開キー不要）。上記 Cloudflare 変数はバッチ書き込み専用です。
 
 ### 4. 店舗データ取得
 
@@ -50,53 +60,53 @@ npm run fetch-shops
 npm run fetch-shops -- --area=Z011 --dry-run
 ```
 
-大エリアコードはマスタ API から動的取得します（ハードコードしません）。
-
 ### 5. ローカル開発
 
 ```bash
 npm run dev
 ```
 
+`initOpenNextCloudflareForDev` により、ローカルでも D1 バインディングを利用できます。
+
 ## Cloudflare Workers デプロイ
 
 ```bash
-# KV / R2 作成例
 npx wrangler kv namespace create NEXT_INC_CACHE_KV
 npx wrangler r2 bucket create ramen-compare-assets
-
-# wrangler.toml の ID / バケット名を更新後
-npm run preview   # ローカル Workers プレビュー
-npm run deploy    # 本番デプロイ
+# wrangler.toml の ID を更新後
+npm run preview
+npm run deploy
 ```
-
-GitHub 連携での自動デプロイは Cloudflare ダッシュボード側でリポジトリを接続してください。
 
 ## GitHub Actions
 
-`.github/workflows/sync-shops.yml` が週1回バッチを実行します。
+| Workflow | トリガー | 内容 |
+|----------|----------|------|
+| `deploy.yml` | `main` への push / 手動 | OpenNext ビルド → Cloudflare Workers デプロイ |
+| `sync-shops.yml` | 週1回 / 手動 | HotPepper → D1 店舗同期 |
 
 必要な Secrets:
 
-- `HOTPEPPER_API_KEY`
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `SUPABASE_SERVICE_ROLE_KEY`
-
-手動実行時は `area` 入力（例: `Z011`）で1エリアのみも可能です。
+- `CLOUDFLARE_ACCOUNT_ID`
+- `CLOUDFLARE_API_TOKEN`（Workers 編集 + D1 編集）
+- `CLOUDFLARE_D1_DATABASE_ID`（店舗同期用）
+- `HOTPEPPER_API_KEY`（店舗同期用）
+- `NEXT_PUBLIC_ADSENSE_CLIENT_ID`（任意・デプロイ時）
 
 ## ディレクトリ構成（要点）
 
 ```
 src/app/                 # ページ（App Router）
 src/components/          # UI（AdSense スロット含む）
-src/lib/                 # Supabase / 型 / 店舗クエリ
-scripts/fetch-shops.ts   # HotPepper → Supabase upsert
-supabase/migrations/     # DDL + RLS
-wrangler.toml            # Workers + KV + R2
+src/lib/                 # D1 / 型 / 店舗クエリ
+scripts/fetch-shops.ts   # HotPepper → D1 upsert
+migrations/              # D1 DDL
+wrangler.toml            # Workers + KV + R2 + D1
 ```
 
 ## 注意
 
-- ぐるなび API は使用しません（無料提供終了済み）
-- Workers では `@supabase/supabase-js`（fetch ベース）を利用。Node 固有 API に依存するライブラリは避けています
-- AdSense はレイアウト上のプレースホルダのみ。審査申請は別途
+- Supabase は使用していません（無料枠の代替として D1 を採用）
+- ぐるなび API は使用しません
+- D1 に RLS はありません。公開読み取りはアプリ経由のみ、書き込みは API Token 限定
+- AdSense はレイアウト上のプレースホルダのみ

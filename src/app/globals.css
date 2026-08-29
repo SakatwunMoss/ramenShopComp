@@ -1,15 +1,17 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #f7f3ee;
-  --bg-deep: #ebe4da;
-  --ink: #1a1512;
-  --ink-muted: #5c534c;
-  --lacquer: #9e1b1b;
-  --lacquer-deep: #6f1212;
-  --steam: #fffdf9;
-  --line: rgba(26, 21, 18, 0.12);
-  --glow: rgba(158, 27, 27, 0.18);
+  /* 薄めコーラル〜サーモンピンク基調 */
+  --bg: #fff1ec;
+  --bg-deep: #ffd8ce;
+  --ink: #4a2f2c;
+  --ink-muted: #8a6661;
+  --lacquer: #e88976;
+  --lacquer-deep: #d46b58;
+  --steam: #fff8f6;
+  --line: rgba(212, 107, 88, 0.22);
+  --glow: rgba(232, 137, 118, 0.32);
+  --hero-shade: #5c3834;
 }
 
 @theme inline {
@@ -21,10 +23,9 @@
   --color-lacquer-deep: var(--lacquer-deep);
   --color-steam: var(--steam);
   --color-line: var(--line);
-  --font-display: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho",
-    "Noto Serif JP", serif;
-  --font-sans: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic",
-    "YuGothic", "Noto Sans JP", sans-serif;
+  --color-hero-shade: var(--hero-shade);
+  --font-display: "Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  --font-sans: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", sans-serif;
 }
 
 * {
@@ -40,9 +41,9 @@ body {
   min-height: 100vh;
   color: var(--ink);
   background:
-    radial-gradient(1200px 500px at 10% -10%, var(--glow), transparent 55%),
-    radial-gradient(900px 420px at 90% 0%, rgba(26, 21, 18, 0.06), transparent 50%),
-    linear-gradient(180deg, var(--steam) 0%, var(--bg) 38%, var(--bg-deep) 100%);
+    radial-gradient(1100px 480px at 8% -8%, var(--glow), transparent 55%),
+    radial-gradient(900px 420px at 92% 0%, rgba(255, 180, 160, 0.28), transparent 50%),
+    linear-gradient(180deg, var(--steam) 0%, var(--bg) 42%, var(--bg-deep) 100%);
   font-family: var(--font-sans);
 }
 
@@ -52,7 +53,7 @@ a {
 }
 
 ::selection {
-  background: color-mix(in oklab, var(--lacquer) 28%, white);
+  background: color-mix(in oklab, var(--lacquer) 35%, white);
 }
 
 @keyframes rise-in {
@@ -88,4 +89,13 @@ a {
 
 .steam-blob {
   animation: steam-drift 7s ease-in-out infinite;
+}
+
+@keyframes hero-zoom {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.06);
+  }
 }

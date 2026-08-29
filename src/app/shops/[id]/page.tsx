@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { AdSenseSlot } from "@/components/AdSenseSlot";
 import { AREA_LABELS, getShopById } from "@/lib/shops";
 
+export const dynamic = "force-dynamic";
+
 type Props = {
   params: Promise<{ id: string }>;
 };

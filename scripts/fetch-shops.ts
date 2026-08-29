@@ -1,13 +1,19 @@
 /**
- * HotPepper グルメサーチ → Supabase upsert バッチ
+ * HotPepper グルメサーチ → Cloudflare D1 upsert バッチ
  *
  * Usage:
  *   npm run fetch-shops                  # 全国（大エリアを順次）
  *   npm run fetch-shops -- --area=Z011   # 1エリアのみ
  *   npm run fetch-shops -- --dry-run     # API取得のみ（書き込みなし）
+ *
+ * Required env (書き込み時):
+ *   HOTPEPPER_API_KEY
+ *   CLOUDFLARE_ACCOUNT_ID
+ *   CLOUDFLARE_API_TOKEN   (D1 編集権限)
+ *   CLOUDFLARE_D1_DATABASE_ID
  */
 
-import { createClient } from "@supabase/supabase-js";
+import { randomUUID } from "node:crypto";
 
 const GOURMET_URL = "https://webservice.recruit.co.jp/hotpepper/gourmet/v1/";
 const LARGE_AREA_URL =
@@ -15,6 +21,7 @@ const LARGE_AREA_URL =
 const KEYWORD = "ラーメン";
 const PAGE_SIZE = 100;
 const SLEEP_MS = 200;
+const UPSERT_CHUNK = 25;
 
 type LargeArea = { code: string; name: string };
 
@@ -41,10 +48,8 @@ type HotpepperShop = {
 type GourmetResponse = {
   results: {
     results_available: number | string;
-    results_returned: number | string;
-    results_start: number | string;
     shop?: HotpepperShop | HotpepperShop[];
-    error?: { message?: string; code?: string }[];
+    error?: { message?: string }[];
   };
 };
 
@@ -53,6 +58,28 @@ type LargeAreaResponse = {
     large_area?: LargeArea | LargeArea[];
     error?: { message?: string }[];
   };
+};
+
+type ShopRow = {
+  id: string;
+  hotpepper_id: string;
+  data_source: string;
+  name: string;
+  genre: string | null;
+  address: string | null;
+  large_area_code: string | null;
+  middle_area_code: string | null;
+  small_area_code: string | null;
+  lat: number | null;
+  lng: number | null;
+  budget: string | null;
+  image_url: string | null;
+  shop_url: string | null;
+  phone: string | null;
+  open_hours: string | null;
+  close_days: string | null;
+  access: string | null;
+  updated_at: string;
 };
 
 function sleep(ms: number) {
@@ -121,10 +148,11 @@ async function fetchShopsPage(
   };
 }
 
-function toRow(shop: HotpepperShop, largeAreaCode: string) {
+function toRow(shop: HotpepperShop, largeAreaCode: string): ShopRow {
   const image =
     shop.photo?.pc?.l || shop.photo?.pc?.m || shop.logo_image || null;
   return {
+    id: randomUUID(),
     hotpepper_id: shop.id,
     data_source: "hotpepper",
     name: shop.name,
@@ -146,32 +174,110 @@ function toRow(shop: HotpepperShop, largeAreaCode: string) {
   };
 }
 
-async function upsertShops(
-  rows: ReturnType<typeof toRow>[],
-  dryRun: boolean,
-) {
+function getD1Config() {
+  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+  const apiToken = process.env.CLOUDFLARE_API_TOKEN;
+  const databaseId = process.env.CLOUDFLARE_D1_DATABASE_ID;
+  if (!accountId || !apiToken || !databaseId) {
+    throw new Error(
+      "CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_TOKEN, and CLOUDFLARE_D1_DATABASE_ID are required for writes",
+    );
+  }
+  return { accountId, apiToken, databaseId };
+}
+
+async function d1Batch(
+  statements: { sql: string; params: unknown[] }[],
+): Promise<void> {
+  const { accountId, apiToken, databaseId } = getD1Config();
+  const endpoint = `https://api.cloudflare.com/client/v4/accounts/${accountId}/d1/database/${databaseId}/query`;
+
+  // D1 HTTP API は 1 リクエストに複数 SQL を送れるが、サイズ制限に配慮してチャンク化
+  for (let i = 0; i < statements.length; i += UPSERT_CHUNK) {
+    const chunk = statements.slice(i, i + UPSERT_CHUNK);
+    for (const stmt of chunk) {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ sql: stmt.sql, params: stmt.params }),
+      });
+      const body = (await res.json()) as {
+        success?: boolean;
+        errors?: { message?: string }[];
+      };
+      if (!res.ok || body.success === false) {
+        throw new Error(
+          `D1 write failed: ${body.errors?.map((e) => e.message).join(", ") || res.status}`,
+        );
+      }
+    }
+    if (i + UPSERT_CHUNK < statements.length) await sleep(50);
+  }
+}
+
+const UPSERT_SQL = `
+INSERT INTO shops (
+  id, hotpepper_id, data_source, name, genre, address,
+  large_area_code, middle_area_code, small_area_code,
+  lat, lng, budget, image_url, shop_url, phone,
+  open_hours, close_days, access, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(hotpepper_id) DO UPDATE SET
+  data_source = excluded.data_source,
+  name = excluded.name,
+  genre = excluded.genre,
+  address = excluded.address,
+  large_area_code = excluded.large_area_code,
+  middle_area_code = excluded.middle_area_code,
+  small_area_code = excluded.small_area_code,
+  lat = excluded.lat,
+  lng = excluded.lng,
+  budget = excluded.budget,
+  image_url = excluded.image_url,
+  shop_url = excluded.shop_url,
+  phone = excluded.phone,
+  open_hours = excluded.open_hours,
+  close_days = excluded.close_days,
+  access = excluded.access,
+  updated_at = excluded.updated_at
+`;
+
+async function upsertShops(rows: ShopRow[], dryRun: boolean) {
   if (rows.length === 0) return;
   if (dryRun) {
     console.log(`  [dry-run] would upsert ${rows.length} shops`);
     return;
   }
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) {
-    throw new Error(
-      "NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) and SUPABASE_SERVICE_ROLE_KEY are required",
-    );
-  }
+  const statements = rows.map((row) => ({
+    sql: UPSERT_SQL,
+    params: [
+      row.id,
+      row.hotpepper_id,
+      row.data_source,
+      row.name,
+      row.genre,
+      row.address,
+      row.large_area_code,
+      row.middle_area_code,
+      row.small_area_code,
+      row.lat,
+      row.lng,
+      row.budget,
+      row.image_url,
+      row.shop_url,
+      row.phone,
+      row.open_hours,
+      row.close_days,
+      row.access,
+      row.updated_at,
+    ],
+  }));
 
-  const supabase = createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-
-  const { error } = await supabase.from("shops").upsert(rows, {
-    onConflict: "hotpepper_id",
-  });
-  if (error) throw error;
+  await d1Batch(statements);
 }
 
 async function syncArea(
@@ -212,7 +318,7 @@ async function main() {
   }
 
   const { area: areaFilter, dryRun } = parseArgs(process.argv.slice(2));
-  if (dryRun) console.log("Running in dry-run mode (no Supabase writes)");
+  if (dryRun) console.log("Running in dry-run mode (no D1 writes)");
 
   const areas = await fetchLargeAreas(apiKey);
   console.log(`Large areas: ${areas.length}`);
