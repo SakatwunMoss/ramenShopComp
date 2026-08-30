@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import {
   OG_COLORS,
@@ -6,7 +7,8 @@ import {
   OG_IMAGE_SIZE,
   fetchHeroImageBuffer,
   fetchImageAsArrayBuffer,
-  loadOgFonts,
+  resolveOgBaseUrl,
+  safeLoadShopOgFonts,
 } from "@/lib/og-image";
 import { AREA_LABELS, getAreaLabel, getShopById } from "@/lib/shops";
 import type { Shop } from "@/lib/types";
@@ -31,6 +33,7 @@ async function resolveAreaText(shop: Shop): Promise<string> {
 
 async function resolveShopImageSrc(
   shop: Shop,
+  baseUrl: string,
 ): Promise<ArrayBuffer | null> {
   const url = shop.image_url?.trim();
   if (url) {
@@ -38,7 +41,7 @@ async function resolveShopImageSrc(
     if (buffer) return buffer;
   }
 
-  return fetchHeroImageBuffer();
+  return fetchHeroImageBuffer(baseUrl);
 }
 
 export default async function Image({
@@ -50,10 +53,13 @@ export default async function Image({
   const shop = await getShopById(id);
   if (!shop) notFound();
 
+  const headerList = await headers();
+  const baseUrl = resolveOgBaseUrl(headerList);
+
   const [areaText, imageSrc, fonts] = await Promise.all([
     resolveAreaText(shop),
-    resolveShopImageSrc(shop),
-    loadOgFonts(),
+    resolveShopImageSrc(shop, baseUrl),
+    safeLoadShopOgFonts(),
   ]);
 
   const genre = shop.genre?.trim() || "ラーメン";

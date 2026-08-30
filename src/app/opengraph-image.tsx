@@ -1,33 +1,26 @@
 import { ImageResponse } from "next/og";
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { headers } from "next/headers";
+import {
+  OG_CONTENT_TYPE,
+  OG_IMAGE_SIZE,
+  fetchHeroImageBuffer,
+  resolveOgBaseUrl,
+  safeLoadSiteOgFonts,
+} from "@/lib/og-image";
 import { SITE_DISPLAY_NAME, SITE_TITLE_DEFAULT } from "@/lib/site";
 
 export const alt = SITE_DISPLAY_NAME;
-export const size = { width: 1200, height: 630 };
-export const contentType = "image/png";
-
-const heroData = await readFile(
-  join(process.cwd(), "public/hero-ramen.png"),
-  "base64",
-);
-const heroSrc = `data:image/png;base64,${heroData}`;
-
-const shipporiBold = await readFile(
-  join(
-    process.cwd(),
-    "node_modules/@fontsource/shippori-mincho/files/shippori-mincho-japanese-700-normal.woff",
-  ),
-);
-
-const zenMedium = await readFile(
-  join(
-    process.cwd(),
-    "node_modules/@fontsource/zen-kaku-gothic-new/files/zen-kaku-gothic-new-japanese-500-normal.woff",
-  ),
-);
+export const size = OG_IMAGE_SIZE;
+export const contentType = OG_CONTENT_TYPE;
 
 export default async function Image() {
+  const headerList = await headers();
+  const baseUrl = resolveOgBaseUrl(headerList);
+  const [heroBuffer, fonts] = await Promise.all([
+    fetchHeroImageBuffer(baseUrl),
+    safeLoadSiteOgFonts(),
+  ]);
+
   return new ImageResponse(
     (
       <div
@@ -36,21 +29,25 @@ export default async function Image() {
           height: "100%",
           display: "flex",
           position: "relative",
+          background:
+            "linear-gradient(105deg, #5c3834 0%, #d46b58 100%)",
         }}
       >
-        <img
-          src={heroSrc}
-          alt=""
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            objectPosition: "center",
-          }}
-        />
+        {heroBuffer ? (
+          <img
+            src={heroBuffer as unknown as string}
+            alt=""
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              objectPosition: "center",
+            }}
+          />
+        ) : null}
         <div
           style={{
             position: "absolute",
@@ -120,20 +117,12 @@ export default async function Image() {
     ),
     {
       ...size,
-      fonts: [
-        {
-          name: "Shippori Mincho",
-          data: shipporiBold,
-          style: "normal",
-          weight: 700,
-        },
-        {
-          name: "Zen Kaku Gothic New",
-          data: zenMedium,
-          style: "normal",
-          weight: 500,
-        },
-      ],
+      fonts: fonts.map((font) => ({
+        name: font.name,
+        data: font.data,
+        style: "normal" as const,
+        weight: font.weight,
+      })),
     },
   );
 }

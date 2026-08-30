@@ -12,13 +12,36 @@ export const OG_COLORS = {
   heroShade: "#5c3834",
 } as const;
 
-type OgFont = {
+export type OgFont = {
   name: string;
   data: ArrayBuffer;
   weight: 500 | 700;
 };
 
-let fontsPromise: Promise<OgFont[]> | null = null;
+const FONT_URLS = {
+  shipporiBold:
+    "https://cdn.jsdelivr.net/npm/@fontsource/shippori-mincho@5.3.0/files/shippori-mincho-japanese-700-normal.woff",
+  zenMedium:
+    "https://cdn.jsdelivr.net/npm/@fontsource/zen-kaku-gothic-new@5.3.0/files/zen-kaku-gothic-new-japanese-500-normal.woff",
+  notoMedium:
+    "https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-jp@5.2.5/files/noto-sans-jp-japanese-500-normal.woff",
+  notoBold:
+    "https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-jp@5.2.5/files/noto-sans-jp-japanese-700-normal.woff",
+} as const;
+
+export function resolveOgBaseUrl(headerList: Headers): string {
+  const fromEnv = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (fromEnv) return fromEnv.replace(/\/$/, "");
+
+  const host =
+    headerList.get("x-forwarded-host") ??
+    headerList.get("host") ??
+    "ramen-compare.com";
+  const isLocal = host.startsWith("localhost") || host.startsWith("127.");
+  const protocol =
+    headerList.get("x-forwarded-proto") ?? (isLocal ? "http" : "https");
+  return `${protocol}://${host}`;
+}
 
 export async function fetchImageAsArrayBuffer(
   url: string,
@@ -34,56 +57,58 @@ export async function fetchImageAsArrayBuffer(
   }
 }
 
-export async function fetchHeroImageBuffer(): Promise<ArrayBuffer | null> {
-  const url = new URL("/hero-ramen.png", getSiteUrl()).toString();
+export async function fetchHeroImageBuffer(
+  baseUrl?: string,
+): Promise<ArrayBuffer | null> {
+  const origin = baseUrl?.replace(/\/$/, "") ?? getSiteUrl();
+  const url = new URL("/hero-ramen.png", origin).toString();
   return fetchImageAsArrayBuffer(url);
 }
 
-export function loadOgFonts(): Promise<OgFont[]> {
-  if (!fontsPromise) {
-    fontsPromise = fetchOgFonts();
+async function fetchFont(
+  url: string,
+  name: string,
+  weight: 500 | 700,
+): Promise<OgFont> {
+  const res = await fetch(url, { next: { revalidate: 60 * 60 * 24 * 7 } });
+  if (!res.ok) {
+    throw new Error(`Failed to fetch font: ${name} ${weight}`);
   }
-  return fontsPromise;
+  return {
+    name,
+    data: await res.arrayBuffer(),
+    weight,
+  };
 }
 
-async function fetchGoogleFont(
-  family: string,
-  weight: number,
-): Promise<ArrayBuffer> {
-  const familyParam = family.replace(/ /g, "+");
-  const cssUrl = `https://fonts.googleapis.com/css2?family=${familyParam}:wght@${weight}&display=swap`;
-  const css = await fetch(cssUrl, {
-    headers: {
-      "User-Agent":
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-    },
-  }).then((response) => response.text());
-
-  const matches = [
-    ...css.matchAll(
-      /src: url\((.+?)\) format\('(?:opentype|truetype|woff2|woff)'\)/g,
-    ),
-  ];
-  if (matches.length === 0) {
-    throw new Error(`Font not found: ${family} ${weight}`);
-  }
-
-  const fontUrl = matches[matches.length - 1]?.[1];
-  if (!fontUrl) {
-    throw new Error(`Font URL missing: ${family} ${weight}`);
-  }
-
-  return fetch(fontUrl).then((response) => response.arrayBuffer());
-}
-
-async function fetchOgFonts(): Promise<OgFont[]> {
-  const [medium, bold] = await Promise.all([
-    fetchGoogleFont("Noto Sans JP", 500),
-    fetchGoogleFont("Noto Sans JP", 700),
+export async function loadSiteOgFonts(): Promise<OgFont[]> {
+  return Promise.all([
+    fetchFont(FONT_URLS.shipporiBold, "Shippori Mincho", 700),
+    fetchFont(FONT_URLS.zenMedium, "Zen Kaku Gothic New", 500),
   ]);
+}
 
-  return [
-    { name: "Noto Sans JP", data: medium, weight: 500 },
-    { name: "Noto Sans JP", data: bold, weight: 700 },
-  ];
+export async function loadShopOgFonts(): Promise<OgFont[]> {
+  return Promise.all([
+    fetchFont(FONT_URLS.notoMedium, "Noto Sans JP", 500),
+    fetchFont(FONT_URLS.notoBold, "Noto Sans JP", 700),
+  ]);
+}
+
+export async function safeLoadSiteOgFonts(): Promise<OgFont[]> {
+  try {
+    return await loadSiteOgFonts();
+  } catch (error) {
+    console.error("loadSiteOgFonts error:", error);
+    return [];
+  }
+}
+
+export async function safeLoadShopOgFonts(): Promise<OgFont[]> {
+  try {
+    return await loadShopOgFonts();
+  } catch (error) {
+    console.error("loadShopOgFonts error:", error);
+    return [];
+  }
 }
