@@ -1,6 +1,15 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    return [
+      {
+        source: "/opengraph-image",
+        destination: "/opengraph-image.png",
+        permanent: true,
+      },
+    ];
+  },
   images: {
     // Cloudflare Workers では標準の Image Optimization が使えない。
     // OpenNext の IMAGES バインディング（Cloudflare Images）を有効化するまで

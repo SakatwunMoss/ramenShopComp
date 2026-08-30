@@ -6,7 +6,7 @@ export const SITE_TITLE_DEFAULT =
   "全国ラーメン店比較｜エリア・系統でくらべる";
 export const SITE_DESCRIPTION =
   "全国のラーメン店をエリア・系統から比較・検索。ホットペッパーグルメ掲載店舗を中心に、系統や予算で横並び比較できます。";
-export const DEFAULT_OG_IMAGE = "/opengraph-image";
+export const DEFAULT_OG_IMAGE = "/opengraph-image.png";
 export const DEFAULT_OG_IMAGE_WIDTH = 1200;
 export const DEFAULT_OG_IMAGE_HEIGHT = 630;
 

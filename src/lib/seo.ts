@@ -38,7 +38,9 @@ export function buildPageMetadata({
 }: BuildPageMetaInput): Metadata {
   const ogImage = image?.trim() || DEFAULT_OG_IMAGE;
   const isGeneratedOg =
-    ogImage === DEFAULT_OG_IMAGE || ogImage.endsWith("/opengraph-image");
+    ogImage === DEFAULT_OG_IMAGE ||
+    ogImage.endsWith("/opengraph-image") ||
+    ogImage.endsWith("/opengraph-image.png");
   const images = [
     {
       url: ogImage,
@@ -89,8 +91,8 @@ export function shopDetailPath(id: string): string {
   return `/shops/${id}`;
 }
 
-export function shopOgImagePath(shopId: string): string {
-  return `/shops/${shopId}/opengraph-image`;
+export function shopOgImage(_shop: Shop): string {
+  return DEFAULT_OG_IMAGE;
 }
 
 export function areaLargePath(largeAreaCode: string): string {
@@ -102,8 +104,4 @@ export function areaMiddlePath(
   middleAreaCode: string,
 ): string {
   return `/areas/${largeAreaCode}/${middleAreaCode}`;
-}
-
-export function shopOgImage(shop: Shop): string {
-  return shopOgImagePath(shop.id);
 }
