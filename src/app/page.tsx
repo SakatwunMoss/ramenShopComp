@@ -71,32 +71,26 @@ export default async function HomePage({
   return (
     <>
       <JsonLd data={jsonLd} />
-      <section className="relative isolate aspect-[1584/672] w-full overflow-hidden">
-        <Image
-          src="/hero-ramen.png"
-          alt="ラーメンの湯気と丼ぶり"
-          fill
-          priority
-          sizes="100vw"
-          className="object-cover object-center animate-[hero-zoom_18s_ease-in-out_infinite_alternate]"
-        />
-        <div
-          aria-hidden
-          className="absolute inset-0 bg-gradient-to-r from-hero-shade/75 via-[#c47868]/40 to-[#e88976]/15"
-        />
-        <div
-          aria-hidden
-          className="absolute inset-0 bg-gradient-to-t from-hero-shade/60 via-transparent to-[#ffb5a3]/15"
-        />
+      <section>
+        <div className="relative isolate aspect-[1584/672] w-full overflow-hidden">
+          <Image
+            src="/hero-ramen.png"
+            alt="ラーメンの湯気と丼ぶり"
+            fill
+            priority
+            sizes="100vw"
+            className="object-cover object-center animate-[hero-zoom_18s_ease-in-out_infinite_alternate]"
+          />
+        </div>
 
-        <div className="relative mx-auto flex h-full max-w-6xl flex-col justify-end px-4 py-3 sm:px-6 sm:py-6 md:py-8">
-          <p className="animate-rise font-[family-name:var(--font-display)] text-2xl leading-none tracking-wide text-steam sm:text-5xl md:text-6xl">
-            <span className="text-[#ffb4a4]">Ramen</span> Compare
+        <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+          <p className="animate-rise font-[family-name:var(--font-display)] text-2xl leading-none tracking-wide text-ink sm:text-5xl md:text-6xl">
+            <span className="text-lacquer">Ramen</span> Compare
           </p>
-          <h1 className="animate-rise-delay mt-1.5 max-w-xl text-xs font-medium leading-snug text-steam sm:mt-3 sm:text-lg md:text-xl">
+          <h1 className="animate-rise-delay mt-1.5 max-w-xl text-xs font-medium leading-snug text-ink sm:mt-3 sm:text-lg md:text-xl">
             全国のラーメン店を、エリアと系統でくらべる。
           </h1>
-          <p className="animate-rise-delay mt-1 hidden max-w-md text-sm leading-relaxed text-steam/80 sm:mt-2 sm:block">
+          <p className="animate-rise-delay mt-1 hidden max-w-md text-sm leading-relaxed text-ink-muted sm:mt-2 sm:block">
             気になる店を選んで横並び比較。次に行く一杯を、迷わず決める。
           </p>
           <div className="animate-rise-delay mt-2.5 flex flex-wrap gap-2 sm:mt-5 sm:gap-3">
@@ -108,7 +102,7 @@ export default async function HomePage({
             </a>
             <Link
               href="/areas"
-              className="border border-steam/40 bg-steam/15 px-3.5 py-1.5 text-xs text-steam backdrop-blur-sm transition hover:border-steam/80 hover:bg-steam/25 sm:px-6 sm:py-2.5 sm:text-sm"
+              className="border border-line bg-steam px-3.5 py-1.5 text-xs text-ink transition hover:border-lacquer/40 hover:bg-bg sm:px-6 sm:py-2.5 sm:text-sm"
             >
               エリアから探す
             </Link>
