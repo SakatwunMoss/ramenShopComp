@@ -4,9 +4,6 @@ import { GoogleAnalytics } from "@/components/GoogleAnalytics";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import {
-  DEFAULT_OG_IMAGE,
-  DEFAULT_OG_IMAGE_HEIGHT,
-  DEFAULT_OG_IMAGE_WIDTH,
   SITE_DESCRIPTION,
   SITE_DISPLAY_NAME,
   SITE_TITLE_DEFAULT,
@@ -49,20 +46,11 @@ export async function generateMetadata(): Promise<Metadata> {
       siteName: SITE_DISPLAY_NAME,
       locale: "ja_JP",
       type: "website",
-      images: [
-        {
-          url: DEFAULT_OG_IMAGE,
-          width: DEFAULT_OG_IMAGE_WIDTH,
-          height: DEFAULT_OG_IMAGE_HEIGHT,
-          alt: SITE_DISPLAY_NAME,
-        },
-      ],
     },
     twitter: {
       card: "summary_large_image",
       title: SITE_TITLE_DEFAULT,
       description: SITE_DESCRIPTION,
-      images: [DEFAULT_OG_IMAGE],
     },
     other: {
       "google-adsense-account": "ca-pub-7938835154204291",

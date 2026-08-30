@@ -37,11 +37,12 @@ export function buildPageMetadata({
   absoluteTitle = false,
 }: BuildPageMetaInput): Metadata {
   const ogImage = image?.trim() || DEFAULT_OG_IMAGE;
-  const isDefaultOg = ogImage === DEFAULT_OG_IMAGE;
+  const isGeneratedOg =
+    ogImage === DEFAULT_OG_IMAGE || ogImage.endsWith("/opengraph-image");
   const images = [
     {
       url: ogImage,
-      ...(isDefaultOg
+      ...(isGeneratedOg
         ? { width: DEFAULT_OG_IMAGE_WIDTH, height: DEFAULT_OG_IMAGE_HEIGHT }
         : {}),
       alt: imageAlt ?? title,
@@ -88,6 +89,10 @@ export function shopDetailPath(id: string): string {
   return `/shops/${id}`;
 }
 
+export function shopOgImagePath(shopId: string): string {
+  return `/shops/${shopId}/opengraph-image`;
+}
+
 export function areaLargePath(largeAreaCode: string): string {
   return `/areas/${largeAreaCode}`;
 }
@@ -100,5 +105,5 @@ export function areaMiddlePath(
 }
 
 export function shopOgImage(shop: Shop): string {
-  return shop.image_url?.trim() || DEFAULT_OG_IMAGE;
+  return shopOgImagePath(shop.id);
 }

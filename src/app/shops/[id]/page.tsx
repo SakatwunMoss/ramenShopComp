@@ -16,7 +16,7 @@ import {
   areaMiddlePath,
   buildPageMetadata,
   shopDetailPath,
-  shopOgImage,
+  shopOgImagePath,
 } from "@/lib/seo";
 import {
   AREA_LABELS,
@@ -56,7 +56,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title,
     description: descriptionParts.join(""),
     path: shopDetailPath(shop.id),
-    image: shopOgImage(shop),
+    image: shopOgImagePath(shop.id),
     imageAlt: `${shop.name}の店舗画像`,
   });
 }
