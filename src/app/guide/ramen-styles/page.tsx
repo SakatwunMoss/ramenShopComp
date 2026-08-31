@@ -43,7 +43,7 @@ const STYLES = [
     styleId: "iekei" as const,
     name: "Iekei",
     description:
-      "A Yokohama-born style blending tonkotsu and shoyu, served with thick, flat noodles and a slice of nori. Rich but not as heavy as pure tonkotsu.",
+      "A Yokohama-born style blending tonkotsu and shoyu, served with thick, flat noodles and a slice of nori. Rich but not as heavy as pure tonkotsu. Also known as EAK.",
   },
   {
     styleId: "jiro" as const,
