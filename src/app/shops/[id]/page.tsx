@@ -18,6 +18,14 @@ import {
   shopDetailPath,
 } from "@/lib/seo";
 import {
+  appendEnglishMeta,
+  appendEnglishSentence,
+  areaJaWithEn,
+  formatGenreMetaLabel,
+  inferRamenStyleFromShop,
+  largeAreaEn,
+} from "@/lib/seo-en";
+import {
   AREA_LABELS,
   getAreaLabel,
   getShopById,
@@ -39,21 +47,36 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       (await getAreaLabel(shop.large_area_code)) ??
       shop.large_area_code)
     : null;
+  const areaEn = largeAreaEn(shop.large_area_code);
+  const style = inferRamenStyleFromShop(shop);
+  const styleOrRamen = style?.labelEn ?? "Ramen";
 
-  const title = areaLabel
+  const titleJa = areaLabel
     ? `${shop.name} - ${areaLabel}のラーメン店`
     : `${shop.name}のラーメン店情報`;
+  const titleEn = areaEn
+    ? `${styleOrRamen} in ${areaEn}`
+    : `${styleOrRamen} shop in Japan`;
 
   const descriptionParts = [
     `${shop.name}の住所・営業時間・アクセス情報。`,
-    areaLabel ? `${areaLabel}のラーメン店を比較できます。` : null,
-    shop.genre ? `ジャンル: ${shop.genre}。` : null,
+    areaLabel
+      ? `${areaJaWithEn(areaLabel, areaEn)}のラーメン店を比較できます。`
+      : null,
+    formatGenreMetaLabel(shop.genre, style),
     shop.budget ? `予算目安: ${shop.budget}。` : null,
   ].filter(Boolean);
 
+  const descriptionEn = areaEn
+    ? `Ramen shop details in ${areaEn}, Japan.`
+    : "Ramen shop details in Japan.";
+
   return buildPageMetadata({
-    title,
-    description: descriptionParts.join(""),
+    title: appendEnglishMeta(titleJa, titleEn),
+    description: appendEnglishSentence(
+      descriptionParts.join(""),
+      descriptionEn,
+    ),
     path: shopDetailPath(shop.id),
   });
 }

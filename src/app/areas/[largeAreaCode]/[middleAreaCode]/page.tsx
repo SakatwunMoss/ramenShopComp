@@ -17,6 +17,13 @@ import {
   areaMiddlePath,
   buildPageMetadata,
 } from "@/lib/seo";
+import {
+  appendEnglishMeta,
+  appendEnglishSentence,
+  areaJaWithEn,
+  largeAreaEn,
+  middleAreaEn,
+} from "@/lib/seo-en";
 import { SHOPS_PAGE_SIZE } from "@/lib/site";
 import {
   AREA_LABELS,
@@ -74,10 +81,33 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     genres.length > 0
       ? `主なジャンルは${genres.map((g) => g.genre).join("、")}など。`
       : "";
+  const largeEn = largeAreaEn(largeAreaCode);
+  const middleEn = middleAreaEn(middleAreaCode, middleName);
+  const locationEn = middleEn
+    ? largeEn
+      ? `${middleEn}, ${largeEn}`
+      : middleEn
+    : largeEn;
+  const titleEn = middleEn
+    ? `Ramen near ${middleEn}`
+    : largeEn
+      ? `Ramen shops in ${largeEn}`
+      : "Ramen shops in Japan";
+  const descLocation = locationEn
+    ? areaJaWithEn(`${largeName}・${middleName}`, locationEn)
+    : `${largeName}・${middleName}`;
 
   return buildPageMetadata({
-    title: `${middleName}のラーメン店一覧・比較`,
-    description: `${largeName}・${middleName}のラーメン店を ${paginated.total.toLocaleString("ja-JP")} 件掲載。${genreHint}系統や予算で絞り込んで比較できます。`,
+    title: appendEnglishMeta(
+      `${middleName}のラーメン店一覧・比較`,
+      titleEn,
+    ),
+    description: appendEnglishSentence(
+      `${descLocation}のラーメン店を ${paginated.total.toLocaleString("ja-JP")} 件掲載。${genreHint}系統や予算で絞り込んで比較できます。`,
+      locationEn
+        ? `Compare ramen shops near ${locationEn}.`
+        : "Compare ramen shops in Japan by area and style.",
+    ),
     path: areaMiddlePath(largeAreaCode, middleAreaCode),
   });
 }

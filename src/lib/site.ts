@@ -3,9 +3,9 @@
 export const SITE_NAME = "ramen-compare";
 export const SITE_DISPLAY_NAME = "Ramen Compare";
 export const SITE_TITLE_DEFAULT =
-  "全国ラーメン店比較｜エリア・系統でくらべる";
+  "全国ラーメン店比較｜エリア・系統でくらべる | Compare ramen shops across Japan";
 export const SITE_DESCRIPTION =
-  "全国のラーメン店をエリア・系統から比較・検索。ホットペッパーグルメ掲載店舗を中心に、系統や予算で横並び比較できます。";
+  "全国のラーメン店をエリア・系統から比較・検索。ホットペッパーグルメ掲載店舗を中心に、系統や予算で横並び比較できます。 Compare ramen shops in Japan by area and style (tonkotsu, iekei, miso, and more).";
 export const DEFAULT_OG_IMAGE = "/opengraph-image.png";
 export const DEFAULT_OG_IMAGE_WIDTH = 1200;
 export const DEFAULT_OG_IMAGE_HEIGHT = 630;

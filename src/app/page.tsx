@@ -13,7 +13,11 @@ import {
 } from "@/lib/json-ld";
 import { getDb } from "@/lib/db";
 import { buildPageMetadata } from "@/lib/seo";
-import { SITE_DESCRIPTION, SHOPS_PAGE_SIZE } from "@/lib/site";
+import {
+  SITE_DESCRIPTION,
+  SITE_TITLE_DEFAULT,
+  SHOPS_PAGE_SIZE,
+} from "@/lib/site";
 import { getAreaLabel, listLargeAreas, listShopsPaginated } from "@/lib/shops";
 
 export const dynamic = "force-dynamic";
@@ -28,7 +32,7 @@ type SearchParams = Promise<{
 
 export async function generateMetadata(): Promise<Metadata> {
   return buildPageMetadata({
-    title: "全国ラーメン店比較｜エリア・系統でくらべる",
+    title: SITE_TITLE_DEFAULT,
     description: SITE_DESCRIPTION,
     path: "/",
     absoluteTitle: true,

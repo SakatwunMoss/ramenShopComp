@@ -7,6 +7,10 @@ import {
   buildJsonLdGraph,
 } from "@/lib/json-ld";
 import { buildPageMetadata } from "@/lib/seo";
+import {
+  appendEnglishMeta,
+  appendEnglishSentence,
+} from "@/lib/seo-en";
 import { listLargeAreas } from "@/lib/shops";
 
 export const dynamic = "force-dynamic";
@@ -14,14 +18,20 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata(): Promise<Metadata> {
   const areas = await listLargeAreas({ ramenOnly: true });
   const total = areas.reduce((sum, a) => sum + a.count, 0);
-  const description =
+  const descriptionJa =
     total > 0
       ? `全国 ${areas.length} エリア・合計 ${total.toLocaleString("ja-JP")} 件のラーメン店をエリア別に探せます。都道府県・地方から比較一覧へ。`
       : "全国のラーメン店をエリア別に探せます。都道府県・地方から比較一覧へ。";
 
   return buildPageMetadata({
-    title: "エリアからラーメン店を探す",
-    description,
+    title: appendEnglishMeta(
+      "エリアからラーメン店を探す",
+      "Find ramen shops by area in Japan",
+    ),
+    description: appendEnglishSentence(
+      descriptionJa,
+      "Browse ramen shops across Japan by prefecture and city.",
+    ),
     path: "/areas",
   });
 }

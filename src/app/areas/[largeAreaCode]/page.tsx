@@ -13,6 +13,12 @@ import {
   buildJsonLdGraph,
 } from "@/lib/json-ld";
 import { areaLargePath, buildPageMetadata } from "@/lib/seo";
+import {
+  appendEnglishMeta,
+  appendEnglishSentence,
+  areaJaWithEn,
+  largeAreaEn,
+} from "@/lib/seo-en";
 import { SHOPS_PAGE_SIZE } from "@/lib/site";
 import {
   AREA_LABELS,
@@ -58,10 +64,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     genres.length > 0
       ? `主なジャンルは${genres.map((g) => g.genre).join("、")}など。`
       : "";
+  const nameEn = largeAreaEn(largeAreaCode);
+  const nameWithEn = areaJaWithEn(name, nameEn);
 
   return buildPageMetadata({
-    title: `${name}のラーメン店一覧・比較`,
-    description: `${name}のラーメン店を ${total.toLocaleString("ja-JP")} 件掲載。${genreHint}系統や予算で絞り込んで横並び比較できます。`,
+    title: appendEnglishMeta(
+      `${name}のラーメン店一覧・比較`,
+      nameEn ? `Ramen shops in ${nameEn}` : "Ramen shops in Japan",
+    ),
+    description: appendEnglishSentence(
+      `${nameWithEn}のラーメン店を ${total.toLocaleString("ja-JP")} 件掲載。${genreHint}系統や予算で絞り込んで横並び比較できます。`,
+      nameEn
+        ? `Find and compare the best ramen near you in ${nameEn}, Japan.`
+        : "Find and compare the best ramen near you in Japan.",
+    ),
     path: areaLargePath(largeAreaCode),
   });
 }
