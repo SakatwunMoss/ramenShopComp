@@ -32,6 +32,12 @@ export function SiteFooter() {
           >
             このサイトについて
           </Link>
+          <Link
+            href="/guide/ramen-styles"
+            className="underline decoration-steam/40 underline-offset-2 hover:decoration-steam"
+          >
+            Ramen style guide
+          </Link>
         </p>
         <p className="text-steam/55">© {new Date().getFullYear()} Ramen Compare</p>
       </div>

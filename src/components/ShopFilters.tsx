@@ -51,8 +51,16 @@ export function ShopFilters({
           </select>
         </label>
 
-        <label className="flex min-w-[140px] flex-1 flex-col gap-1 text-xs tracking-wider text-ink-muted uppercase">
-          系統
+        <div className="flex min-w-[140px] flex-1 flex-col gap-1">
+          <div className="flex items-baseline justify-between gap-2 text-xs tracking-wider text-ink-muted uppercase">
+            <span>系統</span>
+            <Link
+              href="/guide/ramen-styles"
+              className="normal-case tracking-normal text-[11px] text-lacquer underline-offset-2 hover:underline"
+            >
+              What do these styles mean?
+            </Link>
+          </div>
           <select
             name="style"
             defaultValue={currentStyle ?? ""}
@@ -65,7 +73,7 @@ export function ShopFilters({
               </option>
             ))}
           </select>
-        </label>
+        </div>
 
         <label className="flex min-w-[160px] flex-1 flex-col gap-1 text-xs tracking-wider text-ink-muted uppercase">
           対象

@@ -27,6 +27,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "monthly",
       priority: 0.4,
     },
+    {
+      url: `${base}/guide/ramen-styles`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.5,
+    },
     ...areas.map((area) => ({
       url: `${base}${area.path}`,
       lastModified: area.updatedAt ? new Date(area.updatedAt) : now,
