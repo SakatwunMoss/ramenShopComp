@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "npm run generate:site-og && next build",
     "generate:site-og": "tsx scripts/generate-site-og.tsx",
-    "generate:favicons": "tsx scripts/generate-favicons.ts",
+    "generate:favicons": "node scripts/generate-favicons.mjs",
     "start": "next start",
     "lint": "eslint",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
