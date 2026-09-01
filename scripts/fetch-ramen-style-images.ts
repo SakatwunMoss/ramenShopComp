@@ -27,7 +27,7 @@ const FILES: { key: string; wikiTitle: string; outName: string }[] = [
   },
   {
     key: "tonkotsu",
-    wikiTitle: "File:Clear_tonkotsu_ramen.jpg",
+    wikiTitle: "File:Hakataramen222.jpg",
     outName: "tonkotsu.jpg",
   },
   {

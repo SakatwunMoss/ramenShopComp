@@ -37,15 +37,14 @@ export const RAMEN_STYLE_IMAGES = {
   },
   tonkotsu: {
     src: "/images/ramen-styles/tonkotsu.jpg",
-    alt: "A bowl of clear tonkotsu ramen with light pork bone broth",
-    width: 1280,
-    height: 963,
-    author: "Syced",
-    license: "CC0",
-    licenseUrl: "https://creativecommons.org/publicdomain/zero/1.0/",
-    filePageUrl:
-      "https://commons.wikimedia.org/wiki/File:Clear_tonkotsu_ramen.jpg",
-    originalFileName: "Clear_tonkotsu_ramen.jpg",
+    alt: "A bowl of Hakata tonkotsu ramen with creamy white pork bone broth",
+    width: 1218,
+    height: 1233,
+    author: "Hykw-a4",
+    license: "CC BY-SA 3.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/3.0/",
+    filePageUrl: "https://commons.wikimedia.org/wiki/File:Hakataramen222.jpg",
+    originalFileName: "Hakataramen222.jpg",
   },
   shio: {
     src: "/images/ramen-styles/shio.jpg",
