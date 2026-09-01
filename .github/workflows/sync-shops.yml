@@ -82,4 +82,5 @@ jobs:
         run: |
           npx wrangler r2 object put ramen-compare-assets/shops.json \
             --file=output/shops.json \
-            --content-type=application/json
+            --content-type=application/json \
+            --remote
