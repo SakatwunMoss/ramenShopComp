@@ -16,7 +16,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 import { matchesRamenScope } from "../src/lib/shop-filters";
-import type { AreaCountEntry, ShopsSnapshot } from "../src/lib/shops-snapshot";
+import type { AreaCountEntry, AreaLabel, ShopsSnapshot } from "../src/lib/shops-snapshot";
 import type { Shop } from "../src/lib/types";
 
 const OUTPUT_DIR = join(process.cwd(), "output");
@@ -72,7 +72,7 @@ async function queryAllShopsRemote(): Promise<Shop[]> {
   return body.result?.[0]?.results ?? [];
 }
 
-function queryAllShopsLocal(): Shop[] {
+function queryD1Local<T>(sql: string): T[] {
   const raw = execFileSync(
     "npx",
     [
@@ -82,16 +82,78 @@ function queryAllShopsLocal(): Shop[] {
       "ramen-compare",
       "--local",
       "--command",
-      "SELECT * FROM shops ORDER BY updated_at DESC",
+      sql,
       "--json",
     ],
     { encoding: "utf8" },
   );
 
   const parsed = JSON.parse(raw) as {
-    results?: { results?: Shop[] }[];
+    results?: { results?: T[] }[];
   };
   return parsed.results?.[0]?.results ?? [];
+}
+
+function queryAllShopsLocal(): Shop[] {
+  return queryD1Local<Shop>("SELECT * FROM shops ORDER BY updated_at DESC");
+}
+
+type AreaLabelRow = {
+  code: string;
+  name: string;
+  parent_code: string | null;
+  level: "large" | "middle";
+};
+
+async function queryAreaLabelsRemote(): Promise<Record<string, AreaLabel>> {
+  const { accountId, apiToken, databaseId } = getD1Config();
+  const endpoint = `https://api.cloudflare.com/client/v4/accounts/${accountId}/d1/database/${databaseId}/query`;
+
+  const res = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      sql: "SELECT code, name, parent_code, level FROM area_labels",
+    }),
+  });
+
+  const body = (await res.json()) as {
+    success?: boolean;
+    result?: { results?: AreaLabelRow[] }[];
+    errors?: { message?: string }[];
+  };
+
+  if (!res.ok || body.success === false) {
+    throw new Error(
+      `D1 area_labels query failed: ${body.errors?.map((e) => e.message).join(", ") || res.status}`,
+    );
+  }
+
+  return buildAreaLabelMap(body.result?.[0]?.results ?? []);
+}
+
+function queryAreaLabelsLocal(): Record<string, AreaLabel> {
+  const rows = queryD1Local<AreaLabelRow>(
+    "SELECT code, name, parent_code, level FROM area_labels",
+  );
+  return buildAreaLabelMap(rows);
+}
+
+function buildAreaLabelMap(rows: AreaLabelRow[]): Record<string, AreaLabel> {
+  const map: Record<string, AreaLabel> = {};
+  for (const row of rows) {
+    const code = row.code?.trim();
+    if (!code) continue;
+    map[code] = {
+      name: row.name,
+      parent_code: row.parent_code ?? null,
+      level: row.level,
+    };
+  }
+  return map;
 }
 
 function computeAreaCounts(shops: Shop[]): ShopsSnapshot["area_counts"] {
@@ -131,10 +193,16 @@ async function main() {
   const shops = local ? queryAllShopsLocal() : await queryAllShopsRemote();
   console.log(`Fetched ${shops.length} shops`);
 
+  const areaLabels = local
+    ? queryAreaLabelsLocal()
+    : await queryAreaLabelsRemote();
+  console.log(`Fetched ${Object.keys(areaLabels).length} area labels`);
+
   const snapshot: ShopsSnapshot = {
     generated_at: new Date().toISOString(),
     shops,
     area_counts: computeAreaCounts(shops),
+    area_labels: areaLabels,
   };
 
   mkdirSync(OUTPUT_DIR, { recursive: true });

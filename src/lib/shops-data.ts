@@ -7,7 +7,8 @@ type ShopsR2Bucket = {
 
 const R2_OBJECT_KEY = "shops.json";
 const CACHE_URL = "https://ramen-compare.internal/cache/shops.json";
-const CACHE_TTL_SECONDS = 3600;
+/** 週次バッチ更新に合わせて 1 日キャッシュ */
+const CACHE_TTL_SECONDS = 86_400;
 
 let isolateSnapshot: ShopsSnapshot | null = null;
 let loadingPromise: Promise<ShopsSnapshot | null> | null = null;

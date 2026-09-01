@@ -52,7 +52,11 @@ export function matchesShopFilters(shop: Shop, filters: ShopFilters): boolean {
     return false;
   }
 
-  if (filters.q && !shop.name.includes(filters.q)) return false;
+  if (filters.q) {
+    const q = filters.q;
+    const haystack = `${shop.name} ${shop.genre ?? ""}`;
+    if (!haystack.includes(q)) return false;
+  }
 
   if (!matchesStyleFilter(shop, filters.style)) return false;
 

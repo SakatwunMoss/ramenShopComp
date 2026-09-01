@@ -1,10 +1,8 @@
 import { SHOPS_PAGE_SIZE } from "./site";
 import {
   filterShops,
-  matchesRamenScope,
   type ShopFilters,
 } from "./shop-filters";
-import { getDb } from "./db";
 import { isShopsDataAvailable, loadShopsSnapshot } from "./shops-data";
 import type { AreaCountEntry } from "./shops-snapshot";
 import type { Shop } from "./types";
@@ -183,49 +181,28 @@ export async function listGenreTrends(
 }
 
 export async function getAreaLabel(code: string): Promise<string | null> {
-  if (AREA_LABELS[code]) return AREA_LABELS[code];
+  const normalized = code.trim();
+  if (!normalized) return null;
+  if (AREA_LABELS[normalized]) return AREA_LABELS[normalized];
 
-  const db = await getDb();
-  if (!db) return null;
-
-  try {
-    const row = await db
-      .prepare("SELECT name FROM area_labels WHERE code = ? LIMIT 1")
-      .bind(code)
-      .first<{ name: string }>();
-    return row?.name ?? null;
-  } catch {
-    return null;
-  }
+  const snapshot = await loadShopsSnapshot();
+  return snapshot?.area_labels?.[normalized]?.name ?? null;
 }
 
 async function getAreaLabelMap(codes: string[]): Promise<Map<string, string>> {
   const map = new Map<string, string>();
   const normalized = [...new Set(codes.map((c) => c.trim()).filter(Boolean))];
+  if (normalized.length === 0) return map;
+
+  const snapshot = await loadShopsSnapshot();
+  const labels = snapshot?.area_labels ?? {};
 
   for (const code of normalized) {
-    if (AREA_LABELS[code]) map.set(code, AREA_LABELS[code]);
-  }
-
-  const missing = normalized.filter((c) => !map.has(c));
-  if (missing.length === 0) return map;
-
-  const db = await getDb();
-  if (!db) return map;
-
-  try {
-    const placeholders = missing.map(() => "?").join(", ");
-    const { results } = await db
-      .prepare(
-        `SELECT code, name FROM area_labels WHERE code IN (${placeholders})`,
-      )
-      .bind(...missing)
-      .all<{ code: string; name: string }>();
-    for (const row of results ?? []) {
-      map.set(row.code, row.name);
+    if (AREA_LABELS[code]) {
+      map.set(code, AREA_LABELS[code]);
+    } else if (labels[code]?.name) {
+      map.set(code, labels[code].name);
     }
-  } catch {
-    // ignore missing table
   }
 
   return map;
