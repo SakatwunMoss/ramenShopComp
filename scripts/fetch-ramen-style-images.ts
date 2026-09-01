@@ -32,8 +32,7 @@ const FILES: { key: string; wikiTitle: string; outName: string }[] = [
   },
   {
     key: "shio",
-    wikiTitle:
-      "File:Shio_Ramen_@_Mendokoro_Ginzasa_@_Ginza_(15236939631).jpg",
+    wikiTitle: "File:Japanese_Salt_flavor_Sapporo_Ramen.JPG",
     outName: "shio.jpg",
   },
   {
@@ -53,7 +52,8 @@ const FILES: { key: string; wikiTitle: string; outName: string }[] = [
   },
   {
     key: "tantanmen",
-    wikiTitle: "File:175do_DENO_Tantanmen_TOKYO.jpg",
+    wikiTitle:
+      "File:Dandan_noodles_in_Japan_-_tantanmen_-_September_2014.jpg",
     outName: "tantanmen.jpg",
   },
   {

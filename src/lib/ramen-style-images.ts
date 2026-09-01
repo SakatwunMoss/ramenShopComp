@@ -49,16 +49,15 @@ export const RAMEN_STYLE_IMAGES = {
   },
   shio: {
     src: "/images/ramen-styles/shio.jpg",
-    alt: "A bowl of shio ramen with light, clear salt-seasoned broth",
-    width: 960,
-    height: 1280,
-    author: "Guilhem Vellut",
-    license: "CC BY 2.0",
-    licenseUrl: "https://creativecommons.org/licenses/by/2.0/",
+    alt: "A bowl of shio (salt) ramen with clear, light broth",
+    width: 1280,
+    height: 960,
+    author: "STRONGlk7",
+    license: "CC BY-SA 3.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/3.0/",
     filePageUrl:
-      "https://commons.wikimedia.org/wiki/File:Shio_Ramen_@_Mendokoro_Ginzasa_@_Ginza_(15236939631).jpg",
-    originalFileName:
-      "Shio_Ramen_@_Mendokoro_Ginzasa_@_Ginza_(15236939631).jpg",
+      "https://commons.wikimedia.org/wiki/File:Japanese_Salt_flavor_Sapporo_Ramen.JPG",
+    originalFileName: "Japanese_Salt_flavor_Sapporo_Ramen.JPG",
   },
   iekei: {
     src: "/images/ramen-styles/iekei.jpg",
@@ -96,15 +95,16 @@ export const RAMEN_STYLE_IMAGES = {
   },
   tantanmen: {
     src: "/images/ramen-styles/tantanmen.jpg",
-    alt: "A bowl of tantanmen with spicy sesame broth and ground pork toppings",
-    width: 960,
-    height: 1280,
-    author: "毒島みるく",
-    license: "CC0",
-    licenseUrl: "https://creativecommons.org/publicdomain/zero/1.0/",
+    alt: "A bowl of tantanmen with spicy sesame broth",
+    width: 1280,
+    height: 956,
+    author: "nesnad",
+    license: "CC BY 3.0",
+    licenseUrl: "https://creativecommons.org/licenses/by/3.0/",
     filePageUrl:
-      "https://commons.wikimedia.org/wiki/File:175do_DENO_Tantanmen_TOKYO.jpg",
-    originalFileName: "175do_DENO_Tantanmen_TOKYO.jpg",
+      "https://commons.wikimedia.org/wiki/File:Dandan_noodles_in_Japan_-_tantanmen_-_September_2014.jpg",
+    originalFileName:
+      "Dandan_noodles_in_Japan_-_tantanmen_-_September_2014.jpg",
   },
   "abura-soba": {
     src: "/images/ramen-styles/abura-soba.jpg",
