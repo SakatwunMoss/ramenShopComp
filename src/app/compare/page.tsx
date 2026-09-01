@@ -7,8 +7,7 @@ import {
   MAX_COMPARE,
   parseCompareIds,
 } from "@/lib/compare";
-import { getDb } from "@/lib/db";
-import { getShopsByIds } from "@/lib/shops";
+import { isShopsDataAvailable, getShopsByIds } from "@/lib/shops";
 
 export const dynamic = "force-dynamic";
 
@@ -45,15 +44,15 @@ export default async function ComparePage({ searchParams }: PageProps) {
     notFound();
   }
 
-  const db = await getDb();
-  if (!db) {
+  const hasShopsData = await isShopsDataAvailable();
+  if (!hasShopsData) {
     return (
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
         <h1 className="font-[family-name:var(--font-display)] text-3xl tracking-wide sm:text-4xl">
           店舗比較
         </h1>
         <p className="mt-6 border border-line bg-steam/80 px-4 py-6 text-sm leading-relaxed text-ink-muted">
-          Cloudflare D1 に接続できません。ローカルで DB を用意してから再度お試しください。
+          店舗データ（R2 の shops.json）を読み込めません。週次バッチの実行後に再度お試しください。
         </p>
       </div>
     );

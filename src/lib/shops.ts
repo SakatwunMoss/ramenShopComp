@@ -1,19 +1,15 @@
-import { getDb } from "./db";
 import { SHOPS_PAGE_SIZE } from "./site";
 import {
-  RAMEN_STYLES,
-  type RamenStyleId,
-  type Shop,
-} from "./types";
+  filterShops,
+  matchesRamenScope,
+  type ShopFilters,
+} from "./shop-filters";
+import { getDb } from "./db";
+import { isShopsDataAvailable, loadShopsSnapshot } from "./shops-data";
+import type { AreaCountEntry } from "./shops-snapshot";
+import type { Shop } from "./types";
 
-export type ShopFilters = {
-  area?: string;
-  middleArea?: string;
-  style?: RamenStyleId | string;
-  q?: string;
-  /** false のとき HotPepper キーワード該当をすべて表示（居酒屋等を含む） */
-  ramenOnly?: boolean;
-};
+export type { ShopFilters } from "./shop-filters";
 
 export type AreaStat = {
   code: string;
@@ -35,140 +31,27 @@ export type PaginatedShops = {
   totalPages: number;
 };
 
-/** ラーメン店らしいレコードに寄せる（ジャンル or 店名） */
-const RAMEN_SCOPE_SQL = `(
-  IFNULL(genre, '') LIKE '%ラーメン%'
-  OR name LIKE '%ラーメン%'
-  OR name LIKE '%らーめん%'
-  OR name LIKE '%らあめん%'
-  OR name LIKE '%拉麺%'
-  OR name LIKE '%つけ麺%'
-  OR name LIKE '%つけめん%'
-  OR name LIKE '%麺屋%'
-  OR name LIKE '%麺処%'
-  OR name LIKE '%麺場%'
-)`;
+export { isShopsDataAvailable };
 
-function pushRamenScope(
-  clauses: string[],
-  ramenOnly: boolean | undefined,
-) {
-  if (ramenOnly !== false) {
-    clauses.push(RAMEN_SCOPE_SQL);
-  }
-}
-
-function buildFilterClauses(filters: ShopFilters): {
-  clauses: string[];
-  params: unknown[];
-} {
-  const clauses: string[] = [];
-  const params: unknown[] = [];
-
-  pushRamenScope(clauses, filters.ramenOnly);
-
-  if (filters.area) {
-    clauses.push("large_area_code = ?");
-    params.push(filters.area);
-  }
-
-  if (filters.middleArea) {
-    clauses.push("middle_area_code = ?");
-    params.push(filters.middleArea);
-  }
-
-  if (filters.q) {
-    clauses.push("name LIKE ?");
-    params.push(`%${filters.q}%`);
-  }
-
-  if (filters.style) {
-    const style = RAMEN_STYLES.find((s) => s.id === filters.style);
-    if (style) {
-      const ors = style.keywords
-        .map(
-          () =>
-            "(name LIKE ? OR IFNULL(genre,'') LIKE ? OR IFNULL(access,'') LIKE ?)",
-        )
-        .join(" OR ");
-      clauses.push(`(${ors})`);
-      for (const kw of style.keywords) {
-        const like = `%${kw}%`;
-        params.push(like, like, like);
-      }
-    }
-  }
-
-  return { clauses, params };
-}
-
-function applyStylePostFilter(
-  shops: Shop[],
-  styleId: string | undefined,
-  limit: number,
-): Shop[] {
-  if (!styleId) return shops;
-  const style = RAMEN_STYLES.find((s) => s.id === styleId);
-  if (!style) return shops;
-  return shops
-    .filter((shop) => {
-      const haystack = `${shop.name} ${shop.genre ?? ""} ${shop.access ?? ""}`;
-      return style.keywords.some((kw) => haystack.includes(kw));
-    })
-    .slice(0, limit);
+function countKey(ramenOnly: boolean | undefined): keyof AreaCountEntry {
+  return ramenOnly === false ? "all" : "ramen";
 }
 
 export async function listShops(
   filters: ShopFilters = {},
   limit = 48,
 ): Promise<Shop[]> {
-  const db = await getDb();
-  if (!db) return [];
+  const snapshot = await loadShopsSnapshot();
+  if (!snapshot) return [];
 
-  const { clauses, params } = buildFilterClauses(filters);
-  const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
-  const fetchLimit = filters.style ? Math.max(limit * 3, 120) : limit;
-  const bindParams = [...params, fetchLimit];
-
-  const sql = `
-    SELECT * FROM shops
-    ${where}
-    ORDER BY updated_at DESC
-    LIMIT ?
-  `;
-
-  try {
-    const { results } = await db.prepare(sql).bind(...bindParams).all<Shop>();
-    return applyStylePostFilter(results ?? [], filters.style, limit);
-  } catch (err) {
-    console.error("listShops error:", err);
-    return [];
-  }
+  return filterShops(snapshot.shops, filters).slice(0, limit);
 }
 
 export async function countShops(filters: ShopFilters = {}): Promise<number> {
-  const db = await getDb();
-  if (!db) return 0;
+  const snapshot = await loadShopsSnapshot();
+  if (!snapshot) return 0;
 
-  const { clauses, params } = buildFilterClauses(filters);
-  const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
-
-  // style は SQL 近似 + 後段フィルタのため、style 指定時は実体を数える
-  if (filters.style) {
-    const shops = await listShops(filters, 5000);
-    return shops.length;
-  }
-
-  try {
-    const row = await db
-      .prepare(`SELECT COUNT(*) AS count FROM shops ${where}`)
-      .bind(...params)
-      .first<{ count: number }>();
-    return Number(row?.count ?? 0);
-  } catch (err) {
-    console.error("countShops error:", err);
-    return 0;
-  }
+  return filterShops(snapshot.shops, filters).length;
 }
 
 export async function listShopsPaginated(
@@ -178,9 +61,9 @@ export async function listShopsPaginated(
 ): Promise<PaginatedShops> {
   const safePage = Math.max(1, Math.floor(page) || 1);
   const safeSize = Math.max(1, Math.min(pageSize, 48));
-  const db = await getDb();
 
-  if (!db) {
+  const snapshot = await loadShopsSnapshot();
+  if (!snapshot) {
     return {
       shops: [],
       total: 0,
@@ -190,231 +73,113 @@ export async function listShopsPaginated(
     };
   }
 
-  // style フィルタは後段絞り込みがあるため、広めに取得してからページング
-  if (filters.style) {
-    const all = await listShops(filters, 2000);
-    const total = all.length;
-    const totalPages = total === 0 ? 0 : Math.ceil(total / safeSize);
-    const offset = (safePage - 1) * safeSize;
-    return {
-      shops: all.slice(offset, offset + safeSize),
-      total,
-      page: safePage,
-      pageSize: safeSize,
-      totalPages,
-    };
-  }
-
-  const total = await countShops(filters);
+  const filtered = filterShops(snapshot.shops, filters);
+  const total = filtered.length;
   const totalPages = total === 0 ? 0 : Math.ceil(total / safeSize);
   const offset = (safePage - 1) * safeSize;
 
-  const { clauses, params } = buildFilterClauses(filters);
-  const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
-
-  try {
-    const { results } = await db
-      .prepare(
-        `
-        SELECT * FROM shops
-        ${where}
-        ORDER BY updated_at DESC
-        LIMIT ? OFFSET ?
-      `,
-      )
-      .bind(...params, safeSize, offset)
-      .all<Shop>();
-
-    return {
-      shops: results ?? [],
-      total,
-      page: safePage,
-      pageSize: safeSize,
-      totalPages,
-    };
-  } catch (err) {
-    console.error("listShopsPaginated error:", err);
-    return {
-      shops: [],
-      total,
-      page: safePage,
-      pageSize: safeSize,
-      totalPages,
-    };
-  }
+  return {
+    shops: filtered.slice(offset, offset + safeSize),
+    total,
+    page: safePage,
+    pageSize: safeSize,
+    totalPages,
+  };
 }
 
 export async function getShopById(id: string): Promise<Shop | null> {
-  const db = await getDb();
-  if (!db) return null;
+  const snapshot = await loadShopsSnapshot();
+  if (!snapshot) return null;
 
-  try {
-    return await db
-      .prepare("SELECT * FROM shops WHERE id = ? LIMIT 1")
-      .bind(id)
-      .first<Shop>();
-  } catch (err) {
-    console.error("getShopById error:", err);
-    return null;
-  }
+  return snapshot.shops.find((shop) => shop.id === id) ?? null;
 }
 
 /** URL の id 順を保って複数店舗を取得する */
 export async function getShopsByIds(ids: string[]): Promise<Shop[]> {
   if (ids.length === 0) return [];
 
-  const db = await getDb();
-  if (!db) return [];
+  const snapshot = await loadShopsSnapshot();
+  if (!snapshot) return [];
 
-  const placeholders = ids.map(() => "?").join(", ");
-  try {
-    const { results } = await db
-      .prepare(`SELECT * FROM shops WHERE id IN (${placeholders})`)
-      .bind(...ids)
-      .all<Shop>();
-
-    const byId = new Map((results ?? []).map((shop) => [shop.id, shop]));
-    const ordered: Shop[] = [];
-    for (const id of ids) {
-      const shop = byId.get(id);
-      if (shop) ordered.push(shop);
-    }
-    return ordered;
-  } catch (err) {
-    console.error("getShopsByIds error:", err);
-    return [];
+  const byId = new Map(snapshot.shops.map((shop) => [shop.id, shop]));
+  const ordered: Shop[] = [];
+  for (const id of ids) {
+    const shop = byId.get(id);
+    if (shop) ordered.push(shop);
   }
+  return ordered;
 }
 
 export async function listLargeAreas(options?: {
   ramenOnly?: boolean;
 }): Promise<AreaStat[]> {
-  const db = await getDb();
-  if (!db) return [];
+  const snapshot = await loadShopsSnapshot();
+  if (!snapshot) return [];
 
-  const clauses = [
-    "large_area_code IS NOT NULL",
-    "large_area_code != ''",
-  ];
-  pushRamenScope(clauses, options?.ramenOnly);
+  const key = countKey(options?.ramenOnly);
+  const entries = Object.entries(snapshot.area_counts.large)
+    .map(([code, counts]) => ({
+      code: code.trim(),
+      count: counts[key],
+    }))
+    .filter((row) => row.count > 0)
+    .sort((a, b) => b.count - a.count);
 
-  try {
-    const { results } = await db
-      .prepare(
-        `
-        SELECT large_area_code AS code, COUNT(*) AS count
-        FROM shops
-        WHERE ${clauses.join(" AND ")}
-        GROUP BY large_area_code
-        ORDER BY count DESC
-      `,
-      )
-      .all<{ code: string; count: number }>();
+  const labels = await getAreaLabelMap(entries.map((r) => r.code));
 
-    const labels = await getAreaLabelMap((results ?? []).map((r) => r.code));
-
-    return (results ?? []).map((row) => {
-      const code = row.code.trim();
-      return {
-        code,
-        count: row.count,
-        name: labels.get(code) ?? resolveLargeAreaName(code),
-      };
-    });
-  } catch (err) {
-    console.error("listLargeAreas error:", err);
-    return [];
-  }
+  return entries.map((row) => ({
+    code: row.code,
+    count: row.count,
+    name: labels.get(row.code) ?? resolveLargeAreaName(row.code),
+  }));
 }
 
 export async function listMiddleAreas(
   largeAreaCode: string,
   options?: { ramenOnly?: boolean },
 ): Promise<{ code: string; count: number; name: string }[]> {
-  const db = await getDb();
-  if (!db) return [];
+  const snapshot = await loadShopsSnapshot();
+  if (!snapshot) return [];
 
-  const clauses = [
-    "large_area_code = ?",
-    "middle_area_code IS NOT NULL",
-    "middle_area_code != ''",
-  ];
-  pushRamenScope(clauses, options?.ramenOnly);
+  const key = countKey(options?.ramenOnly);
+  const byMiddle = snapshot.area_counts.middle[largeAreaCode] ?? {};
+  const entries = Object.entries(byMiddle)
+    .map(([code, counts]) => ({
+      code: code.trim(),
+      count: counts[key],
+    }))
+    .filter((row) => row.count > 0)
+    .sort((a, b) => b.count - a.count);
 
-  try {
-    const { results } = await db
-      .prepare(
-        `
-        SELECT middle_area_code AS code, COUNT(*) AS count
-        FROM shops
-        WHERE ${clauses.join(" AND ")}
-        GROUP BY middle_area_code
-        ORDER BY count DESC
-      `,
-      )
-      .bind(largeAreaCode)
-      .all<{ code: string; count: number }>();
+  const labels = await getAreaLabelMap(entries.map((r) => r.code));
 
-    const labels = await getAreaLabelMap(
-      (results ?? []).map((r) => r.code),
-    );
-
-    return (results ?? []).map((row) => {
-      const code = row.code.trim();
-      return {
-        code,
-        count: row.count,
-        name: labels.get(code) ?? code,
-      };
-    });
-  } catch (err) {
-    console.error("listMiddleAreas error:", err);
-    return [];
-  }
+  return entries.map((row) => ({
+    code: row.code,
+    count: row.count,
+    name: labels.get(row.code) ?? row.code,
+  }));
 }
 
 export async function listGenreTrends(
   filters: Pick<ShopFilters, "area" | "middleArea" | "ramenOnly">,
   limit = 5,
 ): Promise<GenreTrend[]> {
-  const db = await getDb();
-  if (!db) return [];
+  const snapshot = await loadShopsSnapshot();
+  if (!snapshot) return [];
 
-  const clauses: string[] = [
-    "genre IS NOT NULL",
-    "genre != ''",
-  ];
-  const params: unknown[] = [];
-  pushRamenScope(clauses, filters.ramenOnly);
+  const filtered = filterShops(snapshot.shops, filters);
+  const counts = new Map<string, number>();
 
-  if (filters.area) {
-    clauses.push("large_area_code = ?");
-    params.push(filters.area);
-  }
-  if (filters.middleArea) {
-    clauses.push("middle_area_code = ?");
-    params.push(filters.middleArea);
+  for (const shop of filtered) {
+    const genre = shop.genre?.trim();
+    if (!genre) continue;
+    counts.set(genre, (counts.get(genre) ?? 0) + 1);
   }
 
-  try {
-    const { results } = await db
-      .prepare(
-        `
-        SELECT genre, COUNT(*) AS count
-        FROM shops
-        WHERE ${clauses.join(" AND ")}
-        GROUP BY genre
-        ORDER BY count DESC
-        LIMIT ?
-      `,
-      )
-      .bind(...params, limit)
-      .all<GenreTrend>();
-    return results ?? [];
-  } catch (err) {
-    console.error("listGenreTrends error:", err);
-    return [];
-  }
+  return [...counts.entries()]
+    .map(([genre, count]) => ({ genre, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit);
 }
 
 export async function getAreaLabel(code: string): Promise<string | null> {
@@ -430,7 +195,6 @@ export async function getAreaLabel(code: string): Promise<string | null> {
       .first<{ name: string }>();
     return row?.name ?? null;
   } catch {
-    // area_labels 未マイグレーション時はフォールバック
     return null;
   }
 }
@@ -505,91 +269,69 @@ export async function listAllAreaPathsForSitemap(): Promise<
     updatedAt: string | null;
   }[]
 > {
-  const db = await getDb();
-  if (!db) return [];
+  const snapshot = await loadShopsSnapshot();
+  if (!snapshot) return [{ path: "/areas", updatedAt: null }];
 
   const paths: { path: string; updatedAt: string | null }[] = [
     { path: "/areas", updatedAt: null },
   ];
 
-  try {
-    const { results: large } = await db
-      .prepare(
-        `
-        SELECT large_area_code AS code, MAX(updated_at) AS updated_at
-        FROM shops
-        WHERE large_area_code IS NOT NULL AND large_area_code != ''
-        GROUP BY large_area_code
-      `,
-      )
-      .all<{ code: string; updated_at: string | null }>();
+  const largeUpdated = new Map<string, string | null>();
+  const middleUpdated = new Map<string, string | null>();
 
-    for (const row of large ?? []) {
-      paths.push({
-        path: `/areas/${row.code}`,
-        updatedAt: row.updated_at,
-      });
+  for (const shop of snapshot.shops) {
+    const largeCode = shop.large_area_code?.trim();
+    const middleCode = shop.middle_area_code?.trim();
+    const updatedAt = shop.updated_at ?? null;
+
+    if (largeCode) {
+      const prev = largeUpdated.get(largeCode);
+      if (!prev || (updatedAt && updatedAt > prev)) {
+        largeUpdated.set(largeCode, updatedAt);
+      }
     }
 
-    const { results: middle } = await db
-      .prepare(
-        `
-        SELECT large_area_code AS large_code,
-               middle_area_code AS middle_code,
-               MAX(updated_at) AS updated_at
-        FROM shops
-        WHERE large_area_code IS NOT NULL AND large_area_code != ''
-          AND middle_area_code IS NOT NULL AND middle_area_code != ''
-        GROUP BY large_area_code, middle_area_code
-      `,
-      )
-      .all<{
-        large_code: string;
-        middle_code: string;
-        updated_at: string | null;
-      }>();
-
-    for (const row of middle ?? []) {
-      paths.push({
-        path: `/areas/${row.large_code}/${row.middle_code}`,
-        updatedAt: row.updated_at,
-      });
+    if (largeCode && middleCode) {
+      const key = `${largeCode}/${middleCode}`;
+      const prev = middleUpdated.get(key);
+      if (!prev || (updatedAt && updatedAt > prev)) {
+        middleUpdated.set(key, updatedAt);
+      }
     }
-  } catch (err) {
-    console.error("listAllAreaPathsForSitemap error:", err);
+  }
+
+  for (const [code, updatedAt] of largeUpdated) {
+    paths.push({ path: `/areas/${code}`, updatedAt });
+  }
+
+  for (const [key, updatedAt] of middleUpdated) {
+    paths.push({ path: `/areas/${key}`, updatedAt });
   }
 
   return paths;
 }
 
 export async function countShopsForSitemap(): Promise<number> {
-  return countShops({ ramenOnly: false });
+  const snapshot = await loadShopsSnapshot();
+  if (!snapshot) return 0;
+  return snapshot.shops.length;
 }
 
 export async function listShopSitemapEntries(
   offset: number,
   limit: number,
 ): Promise<{ id: string; updatedAt: string }[]> {
-  const db = await getDb();
-  if (!db) return [];
+  const snapshot = await loadShopsSnapshot();
+  if (!snapshot) return [];
 
-  try {
-    const { results } = await db
-      .prepare(
-        `
-        SELECT id, updated_at AS updatedAt
-        FROM shops
-        ORDER BY updated_at DESC
-        LIMIT ? OFFSET ?
-      `,
-      )
-      .bind(limit, offset)
-      .all<{ id: string; updatedAt: string }>();
-    return results ?? [];
-  } catch (err) {
-    console.error("listShopSitemapEntries error:", err);
-    return [];
-  }
+  return snapshot.shops
+    .slice()
+    .sort((a, b) => (b.updated_at ?? "").localeCompare(a.updated_at ?? ""))
+    .slice(offset, offset + limit)
+    .map((shop) => ({
+      id: shop.id,
+      updatedAt: shop.updated_at,
+    }));
 }
 
 /** 表示用の主要大エリアラベル（コード→地名） */

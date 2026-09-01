@@ -13,6 +13,7 @@
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
     "fetch-shops": "tsx --env-file=.env.local scripts/fetch-shops.ts",
+    "export-shops-json": "tsx --env-file=.env.local scripts/export-shops-json.ts",
     "fetch-ramen-style-images": "tsx scripts/fetch-ramen-style-images.ts"
   },
   "dependencies": {

@@ -20,6 +20,9 @@
 # production
 /build
 
+# batch export
+/output/
+
 # misc
 .DS_Store
 *.pem

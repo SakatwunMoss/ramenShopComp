@@ -11,14 +11,13 @@ import {
   buildItemListNode,
   buildJsonLdGraph,
 } from "@/lib/json-ld";
-import { getDb } from "@/lib/db";
 import { buildPageMetadata } from "@/lib/seo";
 import {
   SITE_DESCRIPTION,
   SITE_TITLE_DEFAULT,
   SHOPS_PAGE_SIZE,
 } from "@/lib/site";
-import { getAreaLabel, listLargeAreas, listShopsPaginated } from "@/lib/shops";
+import { getAreaLabel, isShopsDataAvailable, listLargeAreas, listShopsPaginated } from "@/lib/shops";
 
 export const dynamic = "force-dynamic";
 
@@ -47,8 +46,7 @@ export default async function HomePage({
   const params = await searchParams;
   const ramenOnly = params.scope !== "all";
   const page = Math.max(1, Number(params.page) || 1);
-  const db = await getDb();
-  const hasDb = Boolean(db);
+  const hasShopsData = await isShopsDataAvailable();
 
   const [paginated, areas, selectedAreaLabel] = await Promise.all([
     listShopsPaginated(
@@ -154,27 +152,30 @@ export default async function HomePage({
             </p>
           )}
 
-          {!hasDb && (
+          {!hasShopsData && (
             <p className="mt-8 border border-line bg-steam/80 px-4 py-6 text-sm leading-relaxed text-ink-muted">
-              Cloudflare D1 に接続できません。
+              店舗データ（R2 の shops.json）を読み込めません。
+              週次バッチで{" "}
+              <code className="text-lacquer">npm run export-shops-json</code>{" "}
+              を実行し、R2 バケット{" "}
+              <code className="text-lacquer">ramen-compare-assets</code>{" "}
+              にアップロードしてください。ローカル開発では{" "}
               <code className="text-lacquer">
-                npx wrangler d1 create ramen-compare
+                npm run fetch-shops -- --area=Z011 --local
               </code>{" "}
-              で DB を作り、
-              <code className="text-lacquer">wrangler.toml</code> の database_id
-              を更新したうえで{" "}
+              のあと{" "}
               <code className="text-lacquer">
-                npx wrangler d1 migrations apply DB --local
+                npm run export-shops-json -- --local
               </code>{" "}
               と{" "}
               <code className="text-lacquer">
-                npm run fetch-shops -- --area=Z011
+                npx wrangler r2 object put ramen-compare-assets/shops.json --file=output/shops.json --local
               </code>{" "}
               を実行してください。
             </p>
           )}
 
-          {hasDb && shops.length === 0 && (
+          {hasShopsData && shops.length === 0 && (
             <p className="mt-8 text-sm text-ink-muted">
               条件に一致する店舗がありません。「対象」を「キーワード該当すべて」にするか、別エリアを取り込んでください。
             </p>
