@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { AdSenseSlot } from "@/components/AdSenseSlot";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { JsonLd } from "@/components/JsonLd";
+import { RelatedShops } from "@/components/RelatedShops";
 import { ShopImage } from "@/components/ShopImage";
 import {
   buildBreadcrumbNode,
@@ -29,18 +30,25 @@ import {
   AREA_LABELS,
   getAreaLabel,
   getShopById,
+  listRelatedShops,
 } from "@/lib/shops";
 
-export const dynamic = "force-dynamic";
+/** 週次データ更新に合わせた ISR（force-dynamic だと HTML が毎回未キャッシュ） */
+export const revalidate = 86_400;
 
 type Props = {
   params: Promise<{ id: string }>;
 };
 
+function normalizeShopId(id: string): string {
+  return id.trim().toLowerCase();
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { id } = await params;
+  const { id: rawId } = await params;
+  const id = normalizeShopId(rawId);
   const shop = await getShopById(id);
-  if (!shop) return { title: "店舗が見つかりません" };
+  if (!shop) return { title: "店舗が見つかりません", robots: { index: false } };
 
   const areaLabel = shop.large_area_code
     ? (AREA_LABELS[shop.large_area_code] ??
@@ -82,9 +90,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function ShopDetailPage({ params }: Props) {
-  const { id } = await params;
+  const { id: rawId } = await params;
+  const id = normalizeShopId(rawId);
+  if (rawId !== id) {
+    permanentRedirect(shopDetailPath(id));
+  }
+
   const shop = await getShopById(id);
   if (!shop) notFound();
+
+  const related = await listRelatedShops(shop, 8);
 
   const mapsUrl =
     shop.lat != null && shop.lng != null
@@ -123,6 +138,19 @@ export default async function ShopDetailPage({ params }: Props) {
     buildBreadcrumbNode(crumbs),
   ]);
 
+  const style = inferRamenStyleFromShop(shop);
+  const summaryParts = [
+    largeLabel && middleLabel
+      ? `${largeLabel}・${middleLabel}にある「${shop.name}」の店舗情報です。`
+      : largeLabel
+        ? `${largeLabel}にある「${shop.name}」の店舗情報です。`
+        : `「${shop.name}」の店舗情報です。`,
+    shop.genre ? `ジャンルは${shop.genre}。` : null,
+    style ? `系統の目安は${style.labelJa}系です。` : null,
+    shop.budget ? `予算目安は${shop.budget}。` : null,
+    shop.access ? `アクセス: ${shop.access}` : null,
+  ].filter(Boolean);
+
   return (
     <article className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
       <JsonLd data={jsonLd} />
@@ -140,6 +168,10 @@ export default async function ShopDetailPage({ params }: Props) {
           {shop.budget && (
             <p className="mt-3 text-sm text-ink-muted">予算目安: {shop.budget}</p>
           )}
+
+          <p className="mt-5 max-w-2xl text-sm leading-relaxed text-ink-muted sm:text-base">
+            {summaryParts.join("")}
+          </p>
 
           <dl className="mt-8 space-y-5 border-t border-line pt-8 text-sm">
             <DetailRow label="住所" value={shop.address} />
@@ -233,6 +265,17 @@ export default async function ShopDetailPage({ params }: Props) {
           <AdSenseSlot slot="shop-detail" />
         </div>
       </div>
+
+      <RelatedShops
+        title={
+          middleLabel
+            ? `${middleLabel}のほかのラーメン店`
+            : largeLabel
+              ? `${largeLabel}のほかのラーメン店`
+              : "関連するラーメン店"
+        }
+        shops={related}
+      />
     </article>
   );
 }

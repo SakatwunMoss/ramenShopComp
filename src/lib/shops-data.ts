@@ -78,7 +78,13 @@ export function loadShopsSnapshot(): Promise<ShopsSnapshot | null> {
   return loadingPromise;
 }
 
+/** 店舗データ欠損時は 500 にせず案内を返す（Search Console の 5xx 抑止） */
 export async function isShopsDataAvailable(): Promise<boolean> {
-  const snapshot = await loadShopsSnapshot();
-  return snapshot !== null;
+  try {
+    const snapshot = await loadShopsSnapshot();
+    return snapshot !== null;
+  } catch (err) {
+    console.error("isShopsDataAvailable error:", err);
+    return false;
+  }
 }

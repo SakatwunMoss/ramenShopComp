@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { AdSenseSlot } from "@/components/AdSenseSlot";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { JsonLd } from "@/components/JsonLd";
@@ -30,12 +30,16 @@ import {
   listShopsPaginated,
 } from "@/lib/shops";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 86_400;
 
 type Props = {
   params: Promise<{ largeAreaCode: string }>;
   searchParams: Promise<{ page?: string }>;
 };
+
+function normalizeAreaCode(code: string): string {
+  return code.trim().toUpperCase();
+}
 
 async function resolveLargeName(code: string): Promise<string> {
   return (
@@ -44,7 +48,8 @@ async function resolveLargeName(code: string): Promise<string> {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { largeAreaCode } = await params;
+  const { largeAreaCode: raw } = await params;
+  const largeAreaCode = normalizeAreaCode(raw);
   const name = await resolveLargeName(largeAreaCode);
   const { total } = await listShopsPaginated(
     { area: largeAreaCode, ramenOnly: true },
@@ -53,7 +58,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   );
 
   if (total === 0 && !AREA_LABELS[largeAreaCode]) {
-    return { title: "エリアが見つかりません" };
+    return { title: "エリアが見つかりません", robots: { index: false } };
   }
 
   const genres = await listGenreTrends(
@@ -83,7 +88,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function LargeAreaPage({ params, searchParams }: Props) {
-  const { largeAreaCode } = await params;
+  const { largeAreaCode: raw } = await params;
+  const largeAreaCode = normalizeAreaCode(raw);
+  if (raw !== largeAreaCode) {
+    permanentRedirect(areaLargePath(largeAreaCode));
+  }
+
   const page = Math.max(1, Number((await searchParams).page) || 1);
   const areaName = await resolveLargeName(largeAreaCode);
 

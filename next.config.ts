@@ -8,6 +8,28 @@ const nextConfig: NextConfig = {
         destination: "/opengraph-image.png",
         permanent: true,
       },
+      // 店舗別 OG 画像ルート削除後もクロールされ続ける URL → 共通 OG へ
+      {
+        source: "/shops/:id/opengraph-image",
+        destination: "/opengraph-image.png",
+        permanent: true,
+      },
+      {
+        source: "/shops/:id/opengraph-image.png",
+        destination: "/opengraph-image.png",
+        permanent: true,
+      },
+      // 旧 generateSitemaps() 時代の分割 URL
+      {
+        source: "/sitemap/:id.xml",
+        destination: "/sitemap.xml",
+        permanent: true,
+      },
+      {
+        source: "/sitemap/:id",
+        destination: "/sitemap.xml",
+        permanent: true,
+      },
     ];
   },
   images: {

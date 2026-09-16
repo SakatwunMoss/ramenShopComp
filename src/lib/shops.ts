@@ -1,6 +1,7 @@
 import { SHOPS_PAGE_SIZE } from "./site";
 import {
   filterShops,
+  matchesRamenScope,
   type ShopFilters,
 } from "./shop-filters";
 import { isShopsDataAvailable, loadShopsSnapshot } from "./shops-data";
@@ -89,7 +90,10 @@ export async function getShopById(id: string): Promise<Shop | null> {
   const snapshot = await loadShopsSnapshot();
   if (!snapshot) return null;
 
-  return snapshot.shops.find((shop) => shop.id === id) ?? null;
+  const normalized = id.trim().toLowerCase();
+  return (
+    snapshot.shops.find((shop) => shop.id.toLowerCase() === normalized) ?? null
+  );
 }
 
 /** URL の id 順を保って複数店舗を取得する */
@@ -240,6 +244,10 @@ export function buildAreaIntro(input: {
   return parts.join("");
 }
 
+/**
+ * サイトマップ用エリアパス。
+ * 一覧ページは ramenOnly=true で 404 になるため、ラーメン件数が 0 のエリアは含めない。
+ */
 export async function listAllAreaPathsForSitemap(): Promise<
   {
     path: string;
@@ -257,6 +265,8 @@ export async function listAllAreaPathsForSitemap(): Promise<
   const middleUpdated = new Map<string, string | null>();
 
   for (const shop of snapshot.shops) {
+    if (!matchesRamenScope(shop, true)) continue;
+
     const largeCode = shop.large_area_code?.trim();
     const middleCode = shop.middle_area_code?.trim();
     const updatedAt = shop.updated_at ?? null;
@@ -288,10 +298,11 @@ export async function listAllAreaPathsForSitemap(): Promise<
   return paths;
 }
 
+/** サイトマップには一覧と同じラーメン店のみを載せる */
 export async function countShopsForSitemap(): Promise<number> {
   const snapshot = await loadShopsSnapshot();
   if (!snapshot) return 0;
-  return snapshot.shops.length;
+  return snapshot.shops.filter((shop) => matchesRamenScope(shop, true)).length;
 }
 
 export async function listShopSitemapEntries(
@@ -302,6 +313,7 @@ export async function listShopSitemapEntries(
   if (!snapshot) return [];
 
   return snapshot.shops
+    .filter((shop) => matchesRamenScope(shop, true))
     .slice()
     .sort((a, b) => (b.updated_at ?? "").localeCompare(a.updated_at ?? ""))
     .slice(offset, offset + limit)
@@ -309,6 +321,33 @@ export async function listShopSitemapEntries(
       id: shop.id,
       updatedAt: shop.updated_at,
     }));
+}
+
+/** 同一中エリア（なければ大エリア）の関連店舗。店舗詳細の内部リンク用 */
+export async function listRelatedShops(
+  shop: Shop,
+  limit = 8,
+): Promise<Shop[]> {
+  const snapshot = await loadShopsSnapshot();
+  if (!snapshot) return [];
+
+  const candidates = filterShops(snapshot.shops, {
+    area: shop.large_area_code ?? undefined,
+    middleArea: shop.middle_area_code ?? undefined,
+    ramenOnly: true,
+  }).filter((s) => s.id !== shop.id);
+
+  if (candidates.length >= limit || !shop.large_area_code) {
+    return candidates.slice(0, limit);
+  }
+
+  const seen = new Set(candidates.map((s) => s.id));
+  const fallback = filterShops(snapshot.shops, {
+    area: shop.large_area_code,
+    ramenOnly: true,
+  }).filter((s) => s.id !== shop.id && !seen.has(s.id));
+
+  return [...candidates, ...fallback].slice(0, limit);
 }
 
 /** 表示用の主要大エリアラベル（コード→地名） */

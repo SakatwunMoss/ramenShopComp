@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { CompareTable } from "@/components/CompareTable";
 import {
   comparePagePath,
@@ -41,7 +41,8 @@ export default async function ComparePage({ searchParams }: PageProps) {
   const ids = parseCompareIds((await searchParams).ids);
 
   if (ids.length === 0 || ids.length > MAX_COMPARE) {
-    notFound();
+    // /compare 単体や不正 ids は 404 ではなく一覧へ（GSC の Not found 抑制）
+    permanentRedirect("/");
   }
 
   const hasShopsData = await isShopsDataAvailable();

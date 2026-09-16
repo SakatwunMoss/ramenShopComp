@@ -103,7 +103,7 @@ verification: {
 
 1. 本番で `https://あなたのドメイン/sitemap.xml` が開けることを確認
 2. Search Console →「サイトマップ」→ `sitemap.xml` を送信
-3. 分割サイトマップは `/sitemap/0.xml`（静的・エリア）、`/sitemap/1.xml` 以降（店舗）として生成される
+3. サイトマップは `/sitemap.xml`（単一ファイル）。旧分割 URL（`/sitemap/0.xml` など）は `/sitemap.xml` へ 301 されます。
 
 本番では必ず `NEXT_PUBLIC_SITE_URL` を設定し、sitemap / robots / canonical の絶対 URL を正しいドメインにしてください。
 

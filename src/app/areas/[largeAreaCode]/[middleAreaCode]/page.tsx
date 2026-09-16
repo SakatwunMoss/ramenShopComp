@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { AdSenseSlot } from "@/components/AdSenseSlot";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { JsonLd } from "@/components/JsonLd";
@@ -34,12 +34,16 @@ import {
   listShopsPaginated,
 } from "@/lib/shops";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 86_400;
 
 type Props = {
   params: Promise<{ largeAreaCode: string; middleAreaCode: string }>;
   searchParams: Promise<{ page?: string }>;
 };
+
+function normalizeAreaCode(code: string): string {
+  return code.trim().toUpperCase();
+}
 
 async function resolveLargeName(code: string): Promise<string> {
   return AREA_LABELS[code] ?? (await getAreaLabel(code)) ?? code;
@@ -50,7 +54,9 @@ async function resolveMiddleName(code: string): Promise<string> {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { largeAreaCode, middleAreaCode } = await params;
+  const { largeAreaCode: rawLarge, middleAreaCode: rawMiddle } = await params;
+  const largeAreaCode = normalizeAreaCode(rawLarge);
+  const middleAreaCode = normalizeAreaCode(rawMiddle);
   const [largeName, middleName, paginated, genres] = await Promise.all([
     resolveLargeName(largeAreaCode),
     resolveMiddleName(middleAreaCode),
@@ -74,7 +80,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   ]);
 
   if (paginated.total === 0) {
-    return { title: "エリアが見つかりません" };
+    return { title: "エリアが見つかりません", robots: { index: false } };
   }
 
   const genreHint =
@@ -116,10 +122,16 @@ export default async function MiddleAreaPage({
   params,
   searchParams,
 }: Props) {
-  const { largeAreaCode, middleAreaCode } = await params;
+  const { largeAreaCode: rawLarge, middleAreaCode: rawMiddle } = await params;
+  const largeAreaCode = normalizeAreaCode(rawLarge);
+  const middleAreaCode = normalizeAreaCode(rawMiddle);
+  if (rawLarge !== largeAreaCode || rawMiddle !== middleAreaCode) {
+    permanentRedirect(areaMiddlePath(largeAreaCode, middleAreaCode));
+  }
+
   const page = Math.max(1, Number((await searchParams).page) || 1);
 
-  const [largeName, middleName, paginated, genres, siblingMiddles] =
+  const [largeName, middleName, paginated, genres, siblingMiddles, parentTotal] =
     await Promise.all([
       resolveLargeName(largeAreaCode),
       resolveMiddleName(middleAreaCode),
@@ -141,9 +153,15 @@ export default async function MiddleAreaPage({
         5,
       ),
       listMiddleAreas(largeAreaCode, { ramenOnly: true }),
+      listShopsPaginated({ area: largeAreaCode, ramenOnly: true }, 1, 1),
     ]);
 
   if (paginated.total === 0) {
+    // ラーメン0件だが親大エリアに店舗がある場合は 404 ではなく親へ誘導
+    // （sitemap に誤って載っていた中エリアの救済）
+    if (parentTotal.total > 0) {
+      permanentRedirect(areaLargePath(largeAreaCode));
+    }
     notFound();
   }
 
