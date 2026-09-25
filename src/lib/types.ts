@@ -4,6 +4,8 @@ export type Shop = {
   data_source: string;
   name: string;
   genre: string | null;
+  /** HotPepper キャッチコピー（系統・特徴のヒントになりやすい） */
+  catch?: string | null;
   address: string | null;
   large_area_code: string | null;
   middle_area_code: string | null;
@@ -17,6 +19,8 @@ export type Shop = {
   open_hours: string | null;
   close_days: string | null;
   access: string | null;
+  /** 好み診断用。export 時にキーワード推定で付与（D1 には保存しない） */
+  tags?: string[];
   created_at: string;
   updated_at: string;
 };

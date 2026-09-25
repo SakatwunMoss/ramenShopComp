@@ -1,0 +1,59 @@
+import type { Metadata } from "next";
+import {
+  DiagnoseQuiz,
+  type MiddleAreasByLarge,
+} from "@/components/diagnose/DiagnoseQuiz";
+import { buildPageMetadata } from "@/lib/seo";
+import { listLargeAreas, listMiddleAreas } from "@/lib/shops";
+import type { AreaStat } from "@/lib/shops";
+
+export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = buildPageMetadata({
+  title: "好み診断",
+  description:
+    "エリアとこだわり条件から、あなたに合いそうなラーメン店を提案します。結果からそのまま店舗比較もできます。",
+  path: "/diagnose",
+  noIndex: true,
+});
+
+async function loadAreaOptions(): Promise<{
+  largeAreas: AreaStat[];
+  middleByLarge: MiddleAreasByLarge;
+}> {
+  const largeAreas = await listLargeAreas({ ramenOnly: true });
+  const middleEntries = await Promise.all(
+    largeAreas.map(async (area) => {
+      const middle = await listMiddleAreas(area.code, { ramenOnly: true });
+      return [area.code, middle] as const;
+    }),
+  );
+  return {
+    largeAreas,
+    middleByLarge: Object.fromEntries(middleEntries),
+  };
+}
+
+export default async function DiagnosePage() {
+  const { largeAreas, middleByLarge } = await loadAreaOptions();
+
+  return (
+    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
+      <header className="max-w-2xl">
+        <p className="text-xs tracking-wider text-ink-muted uppercase">
+          Preference quiz
+        </p>
+        <h1 className="mt-2 font-[family-name:var(--font-display)] text-3xl tracking-wide text-ink sm:text-4xl">
+          好み診断
+        </h1>
+        <p className="mt-3 text-sm leading-relaxed text-ink-muted sm:text-base">
+          エリアと好みを答えると、近いラーメン店を最大5件提案します。結果から比較に追加できます。
+        </p>
+      </header>
+
+      <div className="mt-10">
+        <DiagnoseQuiz largeAreas={largeAreas} middleByLarge={middleByLarge} />
+      </div>
+    </div>
+  );
+}

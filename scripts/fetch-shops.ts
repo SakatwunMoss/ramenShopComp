@@ -54,6 +54,7 @@ type HotpepperShop = {
   lat?: string;
   lng?: string;
   genre?: { name?: string };
+  catch?: string;
   budget?: { name?: string };
   logo_image?: string;
   photo?: { pc?: { l?: string; m?: string } };
@@ -88,6 +89,7 @@ type ShopRow = {
   data_source: string;
   name: string;
   genre: string | null;
+  catch: string | null;
   address: string | null;
   large_area_code: string | null;
   middle_area_code: string | null;
@@ -261,12 +263,14 @@ async function fetchShopsPage(
 function toRow(shop: HotpepperShop, largeAreaCode: string): ShopRow {
   const image =
     shop.photo?.pc?.l || shop.photo?.pc?.m || shop.logo_image || null;
+  const catchText = shop.catch?.trim() || null;
   return {
     id: randomUUID(),
     hotpepper_id: shop.id,
     data_source: "hotpepper",
     name: shop.name,
     genre: shop.genre?.name ?? null,
+    catch: catchText,
     address: shop.address ?? null,
     large_area_code: shop.large_area?.code ?? largeAreaCode,
     middle_area_code: shop.middle_area?.code ?? null,
@@ -377,15 +381,16 @@ async function d1Batch(
 
 const UPSERT_SQL = `
 INSERT INTO shops (
-  id, hotpepper_id, data_source, name, genre, address,
+  id, hotpepper_id, data_source, name, genre, catch, address,
   large_area_code, middle_area_code, small_area_code,
   lat, lng, budget, image_url, shop_url, phone,
   open_hours, close_days, access, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(hotpepper_id) DO UPDATE SET
   data_source = excluded.data_source,
   name = excluded.name,
   genre = excluded.genre,
+  catch = excluded.catch,
   address = excluded.address,
   large_area_code = excluded.large_area_code,
   middle_area_code = excluded.middle_area_code,
@@ -417,6 +422,7 @@ async function upsertShops(rows: ShopRow[], dryRun: boolean) {
       row.data_source,
       row.name,
       row.genre,
+      row.catch,
       row.address,
       row.large_area_code,
       row.middle_area_code,

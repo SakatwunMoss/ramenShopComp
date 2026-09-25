@@ -11,9 +11,15 @@ type CompareConfig = {
 type ShopGridProps = {
   shops: Shop[];
   compare: CompareConfig;
+  /** 診断結果のマッチ理由（一致タグ）。空・未指定の店は非表示 */
+  matchReasonsById?: Record<string, string[]>;
 };
 
-export function ShopGrid({ shops, compare }: ShopGridProps) {
+export function ShopGrid({
+  shops,
+  compare,
+  matchReasonsById,
+}: ShopGridProps) {
   return (
     <ul className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {shops.map((shop) => {
@@ -22,6 +28,7 @@ export function ShopGrid({ shops, compare }: ShopGridProps) {
         const areaLabel = shop.large_area_code
           ? (AREA_LABELS[shop.large_area_code] ?? shop.large_area_code)
           : null;
+        const matchReasons = matchReasonsById?.[shop.id]?.filter(Boolean) ?? [];
 
         return (
           <li key={shop.id}>
@@ -59,6 +66,14 @@ export function ShopGrid({ shops, compare }: ShopGridProps) {
                 <h3 className="font-[family-name:var(--font-display)] text-lg leading-snug tracking-wide text-ink transition group-hover:text-lacquer">
                   <Link href={detailHref}>{shop.name}</Link>
                 </h3>
+                {matchReasons.length > 0 ? (
+                  <p className="mt-2 text-sm">
+                    <span className="text-ink-muted/70">マッチ理由</span>
+                    <span className="mt-0.5 block text-lacquer">
+                      {matchReasons.join(" / ")}
+                    </span>
+                  </p>
+                ) : null}
                 <dl className="mt-3 space-y-1 text-sm text-ink-muted">
                   {areaLabel ? (
                     <div className="flex gap-2">

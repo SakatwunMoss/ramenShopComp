@@ -8,9 +8,14 @@ import type { Shop } from "@/lib/types";
 
 type ShopCompareGridProps = {
   shops: Shop[];
+  /** 診断結果のマッチ理由（一致タグ） */
+  matchReasonsById?: Record<string, string[]>;
 };
 
-export function ShopCompareGrid({ shops }: ShopCompareGridProps) {
+export function ShopCompareGrid({
+  shops,
+  matchReasonsById,
+}: ShopCompareGridProps) {
   const [selected, setSelected] = useState<Shop[]>([]);
   const [limitMessage, setLimitMessage] = useState<string | null>(null);
 
@@ -61,6 +66,7 @@ export function ShopCompareGrid({ shops }: ShopCompareGridProps) {
           selectedIds: selected.map((item) => item.id),
           onToggle: toggleSelection,
         }}
+        matchReasonsById={matchReasonsById}
       />
 
       <CompareFloatingBar

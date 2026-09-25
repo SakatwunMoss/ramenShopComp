@@ -11,6 +11,9 @@ export function SiteHeader() {
           <Link href="/#shops" className="transition hover:text-lacquer">
             店舗一覧
           </Link>
+          <Link href="/diagnose" className="transition hover:text-lacquer">
+            好み診断
+          </Link>
           <Link href="/areas" className="transition hover:text-lacquer">
             エリアから探す
           </Link>

@@ -15,6 +15,10 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
+import {
+  applyInferredTags,
+  logTagInferenceStats,
+} from "../src/lib/inferShopTags";
 import { matchesRamenScope } from "../src/lib/shop-filters";
 import type { AreaCountEntry, AreaLabel, ShopsSnapshot } from "../src/lib/shops-snapshot";
 import type { Shop } from "../src/lib/types";
@@ -190,8 +194,17 @@ async function main() {
       : "Exporting shops from remote D1...",
   );
 
-  const shops = local ? queryAllShopsLocal() : await queryAllShopsRemote();
-  console.log(`Fetched ${shops.length} shops`);
+  const shopsRaw = local ? queryAllShopsLocal() : await queryAllShopsRemote();
+  console.log(`Fetched ${shopsRaw.length} shops`);
+
+  // D1 に catch 列が無い古い行向けに null を補完
+  const shopsNormalized: Shop[] = shopsRaw.map((shop) => ({
+    ...shop,
+    catch: shop.catch ?? null,
+  }));
+
+  const { shops, stats } = applyInferredTags(shopsNormalized);
+  logTagInferenceStats(stats);
 
   const areaLabels = local
     ? queryAreaLabelsLocal()
