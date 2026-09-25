@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import { BilingualText } from "@/components/diagnose/BilingualText";
 import {
   DiagnoseQuiz,
   type MiddleAreasByLarge,
 } from "@/components/diagnose/DiagnoseQuiz";
+import { diagnoseCopy } from "@/lib/diagnose/copy";
 import { buildPageMetadata } from "@/lib/seo";
 import { listLargeAreas, listMiddleAreas } from "@/lib/shops";
 import type { AreaStat } from "@/lib/shops";
@@ -12,7 +14,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = buildPageMetadata({
   title: "好み診断",
   description:
-    "エリアとこだわり条件から、あなたに合いそうなラーメン店を提案します。結果からそのまま店舗比較もできます。",
+    "エリアとこだわり条件から、あなたに合いそうなラーメン店を提案します。結果からそのまま店舗比較もできます。 Find ramen shops that match your taste — then compare them side by side.",
   path: "/diagnose",
   noIndex: true,
 });
@@ -40,15 +42,21 @@ export default async function DiagnosePage() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
       <header className="max-w-2xl">
-        <p className="text-xs tracking-wider text-ink-muted uppercase">
-          Preference quiz
-        </p>
-        <h1 className="mt-2 font-[family-name:var(--font-display)] text-3xl tracking-wide text-ink sm:text-4xl">
-          好み診断
-        </h1>
-        <p className="mt-3 text-sm leading-relaxed text-ink-muted sm:text-base">
-          エリアと好みを答えると、近いラーメン店を最大5件提案します。結果から比較に追加できます。
-        </p>
+        <BilingualText
+          as="h1"
+          ja={diagnoseCopy.page.title.ja}
+          en={diagnoseCopy.page.title.en}
+          className="font-[family-name:var(--font-display)] text-3xl tracking-wide text-ink sm:text-4xl"
+          jaClassName="block"
+          enClassName="mt-1.5 font-sans text-sm tracking-normal sm:text-base"
+        />
+        <BilingualText
+          as="p"
+          ja={diagnoseCopy.page.lead.ja}
+          en={diagnoseCopy.page.lead.en}
+          className="mt-3 text-sm leading-relaxed text-ink-muted sm:text-base"
+          tone="muted"
+        />
       </header>
 
       <div className="mt-10">

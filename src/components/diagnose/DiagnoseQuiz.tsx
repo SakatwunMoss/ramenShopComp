@@ -5,8 +5,14 @@ import {
   runDiagnose,
   type DiagnoseActionResult,
 } from "@/app/diagnose/actions";
+import { BilingualText } from "@/components/diagnose/BilingualText";
 import { DiagnoseAreaSelect } from "@/components/diagnose/DiagnoseAreaSelect";
 import { ShopCompareGrid } from "@/components/ShopCompareGrid";
+import {
+  diagnoseCopy,
+  errorToBilingual,
+  optionEn,
+} from "@/lib/diagnose/copy";
 import {
   ANY_PREFERENCE,
   INBOUND_OPTIONS,
@@ -23,13 +29,16 @@ import type { AreaStat } from "@/lib/shops";
 
 type StepId = "area" | "soup" | "spicy" | "richness" | "inbound" | "result";
 
-const STEPS: { id: StepId; title: string }[] = [
-  { id: "area", title: "エリア" },
-  { id: "soup", title: "スープ系統" },
-  { id: "spicy", title: "辛さ" },
-  { id: "richness", title: "こってり度" },
-  { id: "inbound", title: "インバウンド対応" },
-  { id: "result", title: "結果" },
+const STEPS: {
+  id: StepId;
+  title: { ja: string; en: string };
+}[] = [
+  { id: "area", title: diagnoseCopy.steps.area },
+  { id: "soup", title: diagnoseCopy.steps.soup },
+  { id: "spicy", title: diagnoseCopy.steps.spicy },
+  { id: "richness", title: diagnoseCopy.steps.richness },
+  { id: "inbound", title: diagnoseCopy.steps.inbound },
+  { id: "result", title: diagnoseCopy.steps.result },
 ];
 
 export type MiddleAreasByLarge = Record<string, AreaStat[]>;
@@ -54,7 +63,7 @@ function initialDraft(): Draft {
 
 const optionButtonClass = (selected: boolean) =>
   [
-    "border px-4 py-3 text-left text-sm transition",
+    "min-h-[3.25rem] border px-4 py-3 text-left transition",
     selected
       ? "border-lacquer bg-lacquer/10 text-ink"
       : "border-line bg-steam/70 text-ink hover:border-lacquer/50",
@@ -87,11 +96,21 @@ export function DiagnoseQuiz({ largeAreas, middleByLarge }: Props) {
     return Object.keys(map).length > 0 ? map : undefined;
   }, [result]);
 
+  /** マッチ理由は JA / EN を併記した表示用文字列 */
+  const matchReasonsDisplayById = useMemo(() => {
+    if (!matchReasonsById) return undefined;
+    const map: Record<string, string[]> = {};
+    for (const [id, tags] of Object.entries(matchReasonsById)) {
+      map[id] = tags.map((tag) => `${tag} / ${optionEn(tag)}`);
+    }
+    return map;
+  }, [matchReasonsById]);
+
   function goNext() {
     setError(null);
     if (step.id === "area") {
       if (!draft.largeArea || !draft.middleArea) {
-        setError("大エリアと中エリアを選択してください。");
+        setError(diagnoseCopy.area.areaRequired.ja);
         return;
       }
     }
@@ -127,9 +146,16 @@ export function DiagnoseQuiz({ largeAreas, middleByLarge }: Props) {
     setStepIndex(0);
   }
 
+  const errorCopy = error ? errorToBilingual(error) : null;
+  const primaryAction = pending
+    ? diagnoseCopy.actions.diagnosing
+    : step.id === "inbound"
+      ? diagnoseCopy.actions.seeResults
+      : diagnoseCopy.actions.next;
+
   return (
     <div className="border-y border-line py-6 sm:py-8">
-      <ol className="flex flex-wrap gap-2 text-xs tracking-wider text-ink-muted uppercase">
+      <ol className="flex flex-wrap gap-x-2 gap-y-3 text-xs tracking-wider text-ink-muted uppercase">
         {STEPS.filter((s) => s.id !== "result").map((s, i) => {
           const active = s.id === step.id;
           const done = i < stepIndex || step.id === "result";
@@ -144,7 +170,17 @@ export function DiagnoseQuiz({ largeAreas, middleByLarge }: Props) {
                     : "text-ink-muted/60"
               }
             >
-              {i + 1}. {s.title}
+              <span className="inline-flex flex-col">
+                <span>
+                  {i + 1}. {s.title.ja}
+                </span>
+                <span
+                  lang="en"
+                  className="text-[10px] font-normal tracking-normal normal-case opacity-80 sm:text-[11px]"
+                >
+                  {s.title.en}
+                </span>
+              </span>
               {i < STEPS.length - 2 ? (
                 <span className="ml-2 text-ink-muted/40" aria-hidden>
                   /
@@ -158,12 +194,21 @@ export function DiagnoseQuiz({ largeAreas, middleByLarge }: Props) {
       <div className="mt-8 min-h-[220px]">
         {step.id === "area" ? (
           <section>
-            <h2 className="font-[family-name:var(--font-display)] text-xl tracking-wide">
-              どのエリアで探しますか？
-            </h2>
-            <p className="mt-2 text-sm text-ink-muted">
-              中エリアまで選ぶと、その範囲の店舗だけが候補になります。
-            </p>
+            <BilingualText
+              as="h2"
+              ja={diagnoseCopy.area.question.ja}
+              en={diagnoseCopy.area.question.en}
+              className="font-[family-name:var(--font-display)] text-xl tracking-wide"
+              jaClassName="block"
+              enClassName="mt-1 font-sans tracking-normal"
+            />
+            <BilingualText
+              as="p"
+              ja={diagnoseCopy.area.hint.ja}
+              en={diagnoseCopy.area.hint.en}
+              className="mt-2 text-sm text-ink-muted"
+              tone="muted"
+            />
             <div className="mt-6">
               <DiagnoseAreaSelect
                 largeAreas={largeAreas}
@@ -187,7 +232,7 @@ export function DiagnoseQuiz({ largeAreas, middleByLarge }: Props) {
 
         {step.id === "soup" ? (
           <ChoiceStep
-            title="スープ系統は？"
+            title={diagnoseCopy.questions.soup}
             options={SOUP_OPTIONS}
             value={draft.soup}
             onChange={(soup) =>
@@ -198,7 +243,7 @@ export function DiagnoseQuiz({ largeAreas, middleByLarge }: Props) {
 
         {step.id === "spicy" ? (
           <ChoiceStep
-            title="辛いメニューは？"
+            title={diagnoseCopy.questions.spicy}
             options={SPICY_OPTIONS}
             value={draft.spicy}
             onChange={(spicy) =>
@@ -209,7 +254,7 @@ export function DiagnoseQuiz({ largeAreas, middleByLarge }: Props) {
 
         {step.id === "richness" ? (
           <ChoiceStep
-            title="こってり度は？"
+            title={diagnoseCopy.questions.richness}
             options={RICHNESS_OPTIONS}
             value={draft.richness}
             onChange={(richness) =>
@@ -223,7 +268,7 @@ export function DiagnoseQuiz({ largeAreas, middleByLarge }: Props) {
 
         {step.id === "inbound" ? (
           <ChoiceStep
-            title="インバウンド対応は必要ですか？（任意）"
+            title={diagnoseCopy.questions.inbound}
             options={INBOUND_OPTIONS}
             value={draft.inbound}
             onChange={(inbound) =>
@@ -238,19 +283,23 @@ export function DiagnoseQuiz({ largeAreas, middleByLarge }: Props) {
         {step.id === "result" && result ? (
           <ResultsSection
             result={result}
-            matchReasonsById={matchReasonsById}
+            matchReasonsById={matchReasonsDisplayById}
             onRestart={restart}
           />
         ) : null}
       </div>
 
-      {error ? (
-        <p
+      {errorCopy ? (
+        <div
           className="mt-6 border border-[#e8b86d]/50 bg-[#fff6e8] px-4 py-3 text-sm text-[#7a5520]"
           role="alert"
         >
-          {error}
-        </p>
+          <BilingualText
+            ja={errorCopy.ja}
+            en={errorCopy.en}
+            enClassName="text-[#7a5520]/80"
+          />
+        </div>
       ) : null}
 
       {step.id !== "result" ? (
@@ -259,22 +308,26 @@ export function DiagnoseQuiz({ largeAreas, middleByLarge }: Props) {
             <button
               type="button"
               onClick={goBack}
-              className="h-11 border border-line bg-steam px-5 text-sm text-ink transition hover:border-lacquer"
+              className="inline-flex min-h-11 flex-col items-start justify-center border border-line bg-steam px-5 py-2 text-sm text-ink transition hover:border-lacquer"
             >
-              戻る
+              <BilingualText
+                ja={diagnoseCopy.actions.back.ja}
+                en={diagnoseCopy.actions.back.en}
+              />
             </button>
           ) : null}
           <button
             type="button"
             onClick={goNext}
             disabled={pending}
-            className="h-11 bg-lacquer px-6 text-sm font-medium text-steam transition hover:bg-lacquer-deep disabled:opacity-60"
+            className="inline-flex min-h-11 flex-col items-start justify-center bg-lacquer px-6 py-2 text-sm font-medium text-steam transition hover:bg-lacquer-deep disabled:opacity-60"
           >
-            {pending
-              ? "診断中…"
-              : step.id === "inbound"
-                ? "結果を見る"
-                : "次へ"}
+            <BilingualText
+              ja={primaryAction.ja}
+              en={primaryAction.en}
+              tone="onLacquer"
+              jaClassName="font-medium"
+            />
           </button>
         </div>
       ) : null}
@@ -288,16 +341,21 @@ function ChoiceStep({
   value,
   onChange,
 }: {
-  title: string;
+  title: { ja: string; en: string };
   options: readonly string[];
   value: string;
   onChange: (value: string) => void;
 }) {
   return (
     <section>
-      <h2 className="font-[family-name:var(--font-display)] text-xl tracking-wide">
-        {title}
-      </h2>
+      <BilingualText
+        as="h2"
+        ja={title.ja}
+        en={title.en}
+        className="font-[family-name:var(--font-display)] text-xl tracking-wide"
+        jaClassName="block"
+        enClassName="mt-1 font-sans tracking-normal"
+      />
       <ul className="mt-6 grid grid-cols-1 gap-2 sm:grid-cols-2">
         {options.map((option) => (
           <li key={option}>
@@ -307,7 +365,15 @@ function ChoiceStep({
               onClick={() => onChange(option)}
               aria-pressed={value === option}
             >
-              {option}
+              <span lang="ja" className="block text-sm leading-snug">
+                {option}
+              </span>
+              <span
+                lang="en"
+                className="mt-0.5 block text-[11px] leading-snug text-ink-muted sm:text-xs"
+              >
+                {optionEn(option)}
+              </span>
             </button>
           </li>
         ))}
@@ -326,42 +392,72 @@ function ResultsSection({
   onRestart: () => void;
 }) {
   const heading = result.hasPreferenceMatch
-    ? "あなたの好みに近い店"
-    : `${result.middleAreaName}のおすすめ店`;
+    ? diagnoseCopy.results.preferenceMatch
+    : diagnoseCopy.results.areaRecommend(result.middleAreaName);
 
   if (result.candidateCount === 0) {
+    const emptyBody = diagnoseCopy.results.emptyBody(
+      result.largeAreaName,
+      result.middleAreaName,
+    );
     return (
       <section>
-        <h2 className="font-[family-name:var(--font-display)] text-xl tracking-wide">
-          掲載店が見つかりませんでした
-        </h2>
-        <p className="mt-3 text-sm text-ink-muted">
-          {result.largeAreaName}・{result.middleAreaName}
-          には、現在ラーメン店データがありません。別のエリアで試してください。
-        </p>
+        <BilingualText
+          as="h2"
+          ja={diagnoseCopy.results.emptyTitle.ja}
+          en={diagnoseCopy.results.emptyTitle.en}
+          className="font-[family-name:var(--font-display)] text-xl tracking-wide"
+          jaClassName="block"
+          enClassName="mt-1 font-sans tracking-normal"
+        />
+        <BilingualText
+          as="p"
+          ja={emptyBody.ja}
+          en={emptyBody.en}
+          className="mt-3 text-sm text-ink-muted"
+          tone="muted"
+        />
         <button
           type="button"
           onClick={onRestart}
-          className="mt-6 h-11 bg-lacquer px-6 text-sm font-medium text-steam transition hover:bg-lacquer-deep"
+          className="mt-6 inline-flex min-h-11 flex-col items-start justify-center bg-lacquer px-6 py-2 text-sm font-medium text-steam transition hover:bg-lacquer-deep"
         >
-          最初からやり直す
+          <BilingualText
+            ja={diagnoseCopy.actions.restartFromScratch.ja}
+            en={diagnoseCopy.actions.restartFromScratch.en}
+            tone="onLacquer"
+            jaClassName="font-medium"
+          />
         </button>
       </section>
     );
   }
 
   const shops = result.results.map((r) => r.shop);
+  const summary = diagnoseCopy.results.summary(
+    result.largeAreaName,
+    result.middleAreaName,
+    result.candidateCount,
+    shops.length,
+  );
 
   return (
     <section>
-      <h2 className="font-[family-name:var(--font-display)] text-xl tracking-wide sm:text-2xl">
-        {heading}
-      </h2>
-      <p className="mt-2 text-sm text-ink-muted">
-        {result.largeAreaName}・{result.middleAreaName}の候補{" "}
-        {result.candidateCount.toLocaleString("ja-JP")} 件から、上位{" "}
-        {shops.length} 件を表示しています。気になる店を選んで比較できます。
-      </p>
+      <BilingualText
+        as="h2"
+        ja={heading.ja}
+        en={heading.en}
+        className="font-[family-name:var(--font-display)] text-xl tracking-wide sm:text-2xl"
+        jaClassName="block"
+        enClassName="mt-1 font-sans text-base tracking-normal sm:text-lg"
+      />
+      <BilingualText
+        as="p"
+        ja={summary.ja}
+        en={summary.en}
+        className="mt-2 text-sm text-ink-muted"
+        tone="muted"
+      />
 
       <ShopCompareGrid shops={shops} matchReasonsById={matchReasonsById} />
 
@@ -369,9 +465,12 @@ function ResultsSection({
         <button
           type="button"
           onClick={onRestart}
-          className="h-11 border border-line bg-steam px-5 text-sm text-ink transition hover:border-lacquer"
+          className="inline-flex min-h-11 flex-col items-start justify-center border border-line bg-steam px-5 py-2 text-sm text-ink transition hover:border-lacquer"
         >
-          もう一度診断する
+          <BilingualText
+            ja={diagnoseCopy.actions.restart.ja}
+            en={diagnoseCopy.actions.restart.en}
+          />
         </button>
       </div>
     </section>

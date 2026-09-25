@@ -11,8 +11,17 @@ export function SiteHeader() {
           <Link href="/#shops" className="transition hover:text-lacquer">
             店舗一覧
           </Link>
-          <Link href="/diagnose" className="transition hover:text-lacquer">
-            好み診断
+          <Link
+            href="/diagnose"
+            className="inline-flex items-baseline gap-1.5 transition hover:text-lacquer"
+          >
+            <span lang="ja">好み診断</span>
+            <span
+              lang="en"
+              className="text-[10px] text-ink-muted/80 normal-case tracking-normal sm:text-[11px]"
+            >
+              Quiz
+            </span>
           </Link>
           <Link href="/areas" className="transition hover:text-lacquer">
             エリアから探す

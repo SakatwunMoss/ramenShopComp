@@ -98,9 +98,15 @@ export default async function HomePage({
           <div className="animate-rise-delay mt-3 flex flex-col gap-2.5 sm:mt-5 sm:gap-3">
             <Link
               href="/diagnose"
-              className="inline-flex w-full items-center justify-center bg-lacquer px-5 py-3 text-sm font-medium text-steam transition hover:bg-lacquer-deep sm:w-auto sm:self-start sm:px-8 sm:py-3.5 sm:text-base"
+              className="inline-flex w-full flex-col items-center justify-center bg-lacquer px-5 py-3 text-sm font-medium text-steam transition hover:bg-lacquer-deep sm:w-auto sm:items-start sm:self-start sm:px-8 sm:py-3.5 sm:text-base"
             >
-              好み診断をはじめる
+              <span lang="ja">好み診断をはじめる</span>
+              <span
+                lang="en"
+                className="mt-0.5 text-[11px] font-normal leading-snug text-steam/80 sm:text-xs"
+              >
+                Start preference quiz
+              </span>
             </Link>
             <div className="flex flex-wrap gap-2 sm:gap-3">
               <a
@@ -126,17 +132,40 @@ export default async function HomePage({
         <aside className="mb-10 flex flex-col gap-4 border border-line bg-lacquer/10 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-6 sm:py-6">
           <div className="min-w-0">
             <p className="font-[family-name:var(--font-display)] text-lg tracking-wide text-ink sm:text-xl">
-              約30秒で、好みに近い一杯が見つかる
+              <span lang="ja" className="block">
+                約30秒で、好みに近い一杯が見つかる
+              </span>
+              <span
+                lang="en"
+                className="mt-1 block font-sans text-xs font-normal leading-snug tracking-normal text-ink-muted sm:text-sm"
+              >
+                Find a bowl that fits you in about 30 seconds
+              </span>
             </p>
-            <p className="mt-1.5 text-sm leading-relaxed text-ink-muted">
-              エリアと好みを答えるだけ。結果からそのまま比較もできます。
+            <p className="mt-2 text-sm leading-relaxed text-ink-muted">
+              <span lang="ja" className="block">
+                エリアと好みを答えるだけ。結果からそのまま比較もできます。
+              </span>
+              <span
+                lang="en"
+                className="mt-1 block text-[11px] leading-snug text-ink-muted/80 sm:text-xs"
+              >
+                Answer a few questions about area and taste. Compare shops from
+                your results.
+              </span>
             </p>
           </div>
           <Link
             href="/diagnose"
-            className="inline-flex w-full shrink-0 items-center justify-center bg-lacquer px-5 py-3 text-sm font-medium text-steam transition hover:bg-lacquer-deep sm:w-auto sm:px-6"
+            className="inline-flex w-full shrink-0 flex-col items-center justify-center bg-lacquer px-5 py-3 text-sm font-medium text-steam transition hover:bg-lacquer-deep sm:w-auto sm:items-start sm:px-6"
           >
-            好み診断をはじめる
+            <span lang="ja">好み診断をはじめる</span>
+            <span
+              lang="en"
+              className="mt-0.5 text-[11px] font-normal leading-snug text-steam/80 sm:text-xs"
+            >
+              Start preference quiz
+            </span>
           </Link>
         </aside>
 

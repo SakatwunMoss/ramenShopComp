@@ -1,6 +1,8 @@
 "use client";
 
 import type { AreaStat } from "@/lib/shops";
+import { BilingualText } from "@/components/diagnose/BilingualText";
+import { diagnoseCopy } from "@/lib/diagnose/copy";
 
 type Props = {
   largeAreas: AreaStat[];
@@ -22,17 +24,31 @@ export function DiagnoseAreaSelect({
   onLargeChange,
   onMiddleChange,
 }: Props) {
+  const middlePlaceholder = !largeArea
+    ? diagnoseCopy.area.selectLargeFirst
+    : middleAreas.length === 0
+      ? diagnoseCopy.area.noMiddle
+      : diagnoseCopy.area.selectPlaceholder;
+
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
-      <label className="flex min-w-[160px] flex-1 flex-col gap-1 text-xs tracking-wider text-ink-muted uppercase">
-        都道府県・大エリア
+      <label className="flex min-w-[160px] flex-1 flex-col gap-1.5 text-xs tracking-wider text-ink-muted uppercase">
+        <BilingualText
+          ja={diagnoseCopy.area.largeLabel.ja}
+          en={diagnoseCopy.area.largeLabel.en}
+          jaClassName="tracking-wider uppercase"
+          enClassName="normal-case tracking-normal"
+        />
         <select
           value={largeArea}
           onChange={(e) => onLargeChange(e.target.value)}
           className={selectClassName}
           required
         >
-          <option value="">選択してください</option>
+          <option value="">
+            {diagnoseCopy.area.selectPlaceholder.ja} /{" "}
+            {diagnoseCopy.area.selectPlaceholder.en}
+          </option>
           {largeAreas.map((a) => (
             <option key={a.code} value={a.code}>
               {a.name}（{a.count}）
@@ -41,8 +57,13 @@ export function DiagnoseAreaSelect({
         </select>
       </label>
 
-      <label className="flex min-w-[160px] flex-1 flex-col gap-1 text-xs tracking-wider text-ink-muted uppercase">
-        エリア（中エリア）
+      <label className="flex min-w-[160px] flex-1 flex-col gap-1.5 text-xs tracking-wider text-ink-muted uppercase">
+        <BilingualText
+          ja={diagnoseCopy.area.middleLabel.ja}
+          en={diagnoseCopy.area.middleLabel.en}
+          jaClassName="tracking-wider uppercase"
+          enClassName="normal-case tracking-normal"
+        />
         <select
           value={middleArea}
           onChange={(e) => onMiddleChange(e.target.value)}
@@ -51,11 +72,7 @@ export function DiagnoseAreaSelect({
           disabled={!largeArea || middleAreas.length === 0}
         >
           <option value="">
-            {!largeArea
-              ? "先に大エリアを選択"
-              : middleAreas.length === 0
-                ? "候補がありません"
-                : "選択してください"}
+            {middlePlaceholder.ja} / {middlePlaceholder.en}
           </option>
           {middleAreas.map((a) => (
             <option key={a.code} value={a.code}>

@@ -1,6 +1,9 @@
 "use server";
 
 import {
+  diagnoseCopy,
+} from "@/lib/diagnose/copy";
+import {
   INBOUND_OPTIONS,
   RICHNESS_OPTIONS,
   SOUP_OPTIONS,
@@ -70,17 +73,17 @@ export async function runDiagnose(
 ): Promise<DiagnoseActionResult> {
   const prefs = parsePreferences(input);
   if (!prefs) {
-    return { ok: false, error: "診断条件が不正です。エリアを選択してください。" };
+    return { ok: false, error: diagnoseCopy.errors.invalidPrefs.ja };
   }
 
   const available = await isShopsDataAvailable();
   if (!available) {
-    return { ok: false, error: "店舗データを読み込めませんでした。" };
+    return { ok: false, error: diagnoseCopy.errors.dataUnavailable.ja };
   }
 
   const snapshot = await loadShopsSnapshot();
   if (!snapshot) {
-    return { ok: false, error: "店舗データを読み込めませんでした。" };
+    return { ok: false, error: diagnoseCopy.errors.dataUnavailable.ja };
   }
 
   const { results, candidateCount, hasPreferenceMatch } = scoreShops(
