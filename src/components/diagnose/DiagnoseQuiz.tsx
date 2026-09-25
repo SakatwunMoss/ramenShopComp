@@ -198,7 +198,7 @@ export function DiagnoseQuiz({ largeAreas, middleByLarge }: Props) {
 
         {step.id === "spicy" ? (
           <ChoiceStep
-            title="辛さへのこだわりは？"
+            title="辛いメニューは？"
             options={SPICY_OPTIONS}
             value={draft.spicy}
             onChange={(spicy) =>

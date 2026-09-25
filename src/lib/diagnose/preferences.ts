@@ -15,13 +15,13 @@ export const SOUP_OPTIONS = [
 
 export type SoupPreference = (typeof SOUP_OPTIONS)[number];
 
-export const SPICY_OPTIONS = ["辛いの対応してほしい", ANY_PREFERENCE] as const;
+export const SPICY_OPTIONS = ["辛いメニューも食べたい", ANY_PREFERENCE] as const;
 
 export type SpicyPreference = (typeof SPICY_OPTIONS)[number];
 
 /** UI ラベル → 店舗 tags 上のタグ名 */
 export const SPICY_TAG_BY_PREFERENCE = {
-  辛いの対応してほしい: "辛い系対応あり",
+  辛いメニューも食べたい: "辛い系対応あり",
 } as const satisfies Record<
   Exclude<SpicyPreference, AnyPreference>,
   string

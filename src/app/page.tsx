@@ -95,25 +95,50 @@ export default async function HomePage({
           <p className="animate-rise-delay mt-1 hidden max-w-md text-sm leading-relaxed text-ink-muted sm:mt-2 sm:block">
             気になる店を選んで横並び比較。次に行く一杯を、迷わず決める。
           </p>
-          <div className="animate-rise-delay mt-2.5 flex flex-wrap gap-2 sm:mt-5 sm:gap-3">
-            <a
-              href="#shops"
-              className="bg-lacquer px-3.5 py-1.5 text-xs font-medium text-steam transition hover:bg-lacquer-deep sm:px-6 sm:py-2.5 sm:text-sm"
-            >
-              店舗を探す
-            </a>
+          <div className="animate-rise-delay mt-3 flex flex-col gap-2.5 sm:mt-5 sm:gap-3">
             <Link
-              href="/areas"
-              className="border border-line bg-steam px-3.5 py-1.5 text-xs text-ink transition hover:border-lacquer/40 hover:bg-bg sm:px-6 sm:py-2.5 sm:text-sm"
+              href="/diagnose"
+              className="inline-flex w-full items-center justify-center bg-lacquer px-5 py-3 text-sm font-medium text-steam transition hover:bg-lacquer-deep sm:w-auto sm:self-start sm:px-8 sm:py-3.5 sm:text-base"
             >
-              エリアから探す
+              好み診断をはじめる
             </Link>
+            <div className="flex flex-wrap gap-2 sm:gap-3">
+              <a
+                href="#shops"
+                className="inline-flex flex-1 items-center justify-center border border-line bg-steam px-3.5 py-2 text-xs text-ink transition hover:border-lacquer/40 hover:bg-bg sm:flex-none sm:px-6 sm:py-2.5 sm:text-sm"
+              >
+                店舗を探す
+              </a>
+              <Link
+                href="/areas"
+                className="inline-flex flex-1 items-center justify-center border border-line bg-steam px-3.5 py-2 text-xs text-ink transition hover:border-lacquer/40 hover:bg-bg sm:flex-none sm:px-6 sm:py-2.5 sm:text-sm"
+              >
+                エリアから探す
+              </Link>
+            </div>
           </div>
         </div>
       </section>
 
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <AdSenseSlot className="my-10" slot="home-top" />
+
+        <aside className="mb-10 flex flex-col gap-4 border border-line bg-lacquer/10 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-6 sm:py-6">
+          <div className="min-w-0">
+            <p className="font-[family-name:var(--font-display)] text-lg tracking-wide text-ink sm:text-xl">
+              約30秒で、好みに近い一杯が見つかる
+            </p>
+            <p className="mt-1.5 text-sm leading-relaxed text-ink-muted">
+              エリアと好みを答えるだけ。結果からそのまま比較もできます。
+            </p>
+          </div>
+          <Link
+            href="/diagnose"
+            className="inline-flex w-full shrink-0 items-center justify-center bg-lacquer px-5 py-3 text-sm font-medium text-steam transition hover:bg-lacquer-deep sm:w-auto sm:px-6"
+          >
+            好み診断をはじめる
+          </Link>
+        </aside>
 
         <section id="shops" className="scroll-mt-20 pb-16">
           <div className="mb-2 flex items-end justify-between gap-4">
