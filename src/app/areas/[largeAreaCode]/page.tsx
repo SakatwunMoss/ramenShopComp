@@ -42,9 +42,7 @@ function normalizeAreaCode(code: string): string {
 }
 
 async function resolveLargeName(code: string): Promise<string> {
-  return (
-    AREA_LABELS[code] ?? (await getAreaLabel(code)) ?? code
-  );
+  return (await getAreaLabel(code)) ?? AREA_LABELS[code] ?? code;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -57,7 +55,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     1,
   );
 
-  if (total === 0 && !AREA_LABELS[largeAreaCode]) {
+  if (total === 0 && !(await getAreaLabel(largeAreaCode)) && !AREA_LABELS[largeAreaCode]) {
     return { title: "エリアが見つかりません", robots: { index: false } };
   }
 

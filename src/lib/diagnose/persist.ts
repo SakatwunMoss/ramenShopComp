@@ -11,10 +11,13 @@ import {
   type SpicyPreference,
 } from "@/lib/diagnose/preferences";
 
-export const DIAGNOSE_STATE_STORAGE_KEY = "ramen-diagnose-state:v1";
-export const DIAGNOSE_STATE_VERSION = 2;
-/** v1 も後方互換で読む */
-const SUPPORTED_STATE_VERSIONS = new Set([1, 2]);
+export const DIAGNOSE_STATE_STORAGE_KEY = "ramen-diagnose-state:v2";
+export const DIAGNOSE_STATE_VERSION = 3;
+/** 旧キーは読まず破棄（エリア表示マッピング是正により意味が変わるため） */
+const LEGACY_DIAGNOSE_STATE_STORAGE_KEYS = [
+  "ramen-diagnose-state:v1",
+] as const;
+const SUPPORTED_STATE_VERSIONS = new Set([3]);
 
 export const DIAGNOSE_RETURNING_STORAGE_KEY = "ramen-diagnose-returning:v1";
 const MAX_AGE_MS = 24 * 60 * 60 * 1000;
@@ -98,6 +101,11 @@ export function readDiagnoseState(
   stepCount: number,
 ): DiagnosePersistedState | null {
   try {
+    // 旧キーはエリア表示マッピング是正前のデータなので破棄
+    for (const key of LEGACY_DIAGNOSE_STATE_STORAGE_KEYS) {
+      sessionStorage.removeItem(key);
+    }
+
     const raw = sessionStorage.getItem(DIAGNOSE_STATE_STORAGE_KEY);
     if (!raw) return null;
     const parsed: unknown = JSON.parse(raw);
@@ -191,6 +199,9 @@ export function writeDiagnoseState(
 export function clearDiagnoseState(): void {
   try {
     sessionStorage.removeItem(DIAGNOSE_STATE_STORAGE_KEY);
+    for (const key of LEGACY_DIAGNOSE_STATE_STORAGE_KEYS) {
+      sessionStorage.removeItem(key);
+    }
   } catch {
     // ignore
   }

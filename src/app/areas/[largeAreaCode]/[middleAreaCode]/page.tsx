@@ -46,7 +46,7 @@ function normalizeAreaCode(code: string): string {
 }
 
 async function resolveLargeName(code: string): Promise<string> {
-  return AREA_LABELS[code] ?? (await getAreaLabel(code)) ?? code;
+  return (await getAreaLabel(code)) ?? AREA_LABELS[code] ?? code;
 }
 
 async function resolveMiddleName(code: string): Promise<string> {

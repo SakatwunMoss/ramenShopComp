@@ -19,6 +19,8 @@ import {
   applyInferredTags,
   logTagInferenceStats,
 } from "../src/lib/inferShopTags";
+import { checkAreaIntegrity } from "../src/lib/area-integrity";
+import { AREA_LABELS } from "../src/lib/area-labels";
 import { matchesRamenScope } from "../src/lib/shop-filters";
 import type { AreaCountEntry, AreaLabel, ShopsSnapshot } from "../src/lib/shops-snapshot";
 import type { Shop } from "../src/lib/types";
@@ -217,6 +219,24 @@ async function main() {
     area_counts: computeAreaCounts(shops),
     area_labels: areaLabels,
   };
+
+  const integrityIssues = checkAreaIntegrity(
+    snapshot,
+    (code) => AREA_LABELS[code],
+  );
+  if (integrityIssues.length > 0) {
+    console.warn(
+      `\n⚠ Area integrity warnings (${integrityIssues.length}):`,
+    );
+    for (const issue of integrityIssues.slice(0, 30)) {
+      console.warn(`  [${issue.kind}] ${issue.message}`);
+    }
+    if (integrityIssues.length > 30) {
+      console.warn(`  ... and ${integrityIssues.length - 30} more`);
+    }
+  } else {
+    console.log("Area integrity check: ok");
+  }
 
   mkdirSync(OUTPUT_DIR, { recursive: true });
   writeFileSync(OUTPUT_FILE, JSON.stringify(snapshot), "utf8");

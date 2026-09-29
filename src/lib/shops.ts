@@ -5,10 +5,12 @@ import {
   type ShopFilters,
 } from "./shop-filters";
 import { isShopsDataAvailable, loadShopsSnapshot } from "./shops-data";
+import { AREA_LABELS } from "./area-labels";
 import type { AreaCountEntry } from "./shops-snapshot";
 import type { Shop } from "./types";
 
 export type { ShopFilters } from "./shop-filters";
+export { AREA_LABELS } from "./area-labels";
 
 export type AreaStat = {
   code: string;
@@ -187,10 +189,12 @@ export async function listGenreTrends(
 export async function getAreaLabel(code: string): Promise<string | null> {
   const normalized = code.trim();
   if (!normalized) return null;
-  if (AREA_LABELS[normalized]) return AREA_LABELS[normalized];
 
+  // スナップショット（HotPepper 同期結果）を正とし、静的定数はフォールバック
   const snapshot = await loadShopsSnapshot();
-  return snapshot?.area_labels?.[normalized]?.name ?? null;
+  const fromSnap = snapshot?.area_labels?.[normalized]?.name?.trim();
+  if (fromSnap) return fromSnap;
+  return AREA_LABELS[normalized] ?? null;
 }
 
 async function getAreaLabelMap(codes: string[]): Promise<Map<string, string>> {
@@ -202,10 +206,11 @@ async function getAreaLabelMap(codes: string[]): Promise<Map<string, string>> {
   const labels = snapshot?.area_labels ?? {};
 
   for (const code of normalized) {
-    if (AREA_LABELS[code]) {
+    const fromSnap = labels[code]?.name?.trim();
+    if (fromSnap) {
+      map.set(code, fromSnap);
+    } else if (AREA_LABELS[code]) {
       map.set(code, AREA_LABELS[code]);
-    } else if (labels[code]?.name) {
-      map.set(code, labels[code].name);
     }
   }
 
@@ -349,54 +354,3 @@ export async function listRelatedShops(
 
   return [...candidates, ...fallback].slice(0, limit);
 }
-
-/** 表示用の主要大エリアラベル（コード→地名） */
-export const AREA_LABELS: Record<string, string> = {
-  Z011: "東京",
-  Z012: "神奈川",
-  Z013: "埼玉",
-  Z014: "千葉",
-  Z015: "茨城",
-  Z016: "栃木",
-  Z017: "群馬",
-  Z021: "北海道",
-  Z031: "宮城",
-  Z032: "山形",
-  Z033: "福島",
-  Z034: "青森",
-  Z035: "岩手",
-  Z036: "秋田",
-  Z041: "愛知",
-  Z042: "岐阜",
-  Z043: "三重",
-  Z044: "静岡",
-  Z051: "大阪",
-  Z052: "兵庫",
-  Z053: "京都",
-  Z054: "滋賀",
-  Z055: "奈良",
-  Z056: "和歌山",
-  Z061: "岡山",
-  Z062: "広島",
-  Z063: "鳥取",
-  Z064: "島根",
-  Z065: "山口",
-  Z071: "福岡",
-  Z072: "佐賀",
-  Z073: "長崎",
-  Z074: "熊本",
-  Z075: "大分",
-  Z076: "宮崎",
-  Z077: "鹿児島",
-  Z078: "沖縄",
-  Z081: "新潟",
-  Z082: "長野",
-  Z083: "山梨",
-  Z091: "石川",
-  Z092: "福井",
-  Z093: "富山",
-  Z101: "香川",
-  Z102: "徳島",
-  Z103: "愛媛",
-  Z104: "高知",
-};

@@ -51,8 +51,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!shop) return { title: "店舗が見つかりません", robots: { index: false } };
 
   const areaLabel = shop.large_area_code
-    ? (AREA_LABELS[shop.large_area_code] ??
-      (await getAreaLabel(shop.large_area_code)) ??
+    ? ((await getAreaLabel(shop.large_area_code)) ??
+      AREA_LABELS[shop.large_area_code] ??
       shop.large_area_code)
     : null;
   const areaEn = largeAreaEn(shop.large_area_code);
@@ -109,8 +109,8 @@ export default async function ShopDetailPage({ params }: Props) {
         : null;
 
   const largeLabel = shop.large_area_code
-    ? (AREA_LABELS[shop.large_area_code] ??
-      (await getAreaLabel(shop.large_area_code)) ??
+    ? ((await getAreaLabel(shop.large_area_code)) ??
+      AREA_LABELS[shop.large_area_code] ??
       shop.large_area_code)
     : null;
   const middleLabel = shop.middle_area_code
