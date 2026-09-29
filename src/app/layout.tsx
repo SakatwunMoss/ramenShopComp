@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import { DiagnoseReturningGuard } from "@/components/diagnose/DiagnoseReturningGuard";
 import { GoogleAnalytics } from "@/components/GoogleAnalytics";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -24,60 +23,50 @@ import "@fontsource/zen-kaku-gothic-new/latin-500.css";
 import "@fontsource/zen-kaku-gothic-new/latin-700.css";
 import "./globals.css";
 
-export async function generateMetadata(): Promise<Metadata> {
-  const headerList = await headers();
-  const host =
-    headerList.get("x-forwarded-host") ??
-    headerList.get("host") ??
-    "localhost:3000";
-  const isLocal = host.startsWith("localhost") || host.startsWith("127.");
-  const protocol =
-    headerList.get("x-forwarded-proto") ?? (isLocal ? "http" : "https");
-  const metadataBase = new URL(
-    process.env.NEXT_PUBLIC_SITE_URL ?? `${protocol}://${host}`,
-  );
+const SITE_URL_FALLBACK = "https://ramen-compare.com";
 
-  return {
-    metadataBase,
-    title: {
-      default: SITE_TITLE_DEFAULT,
-      template: `%s｜ramen-compare`,
-    },
+export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL?.trim() || SITE_URL_FALLBACK,
+  ),
+  title: {
+    default: SITE_TITLE_DEFAULT,
+    template: `%s｜ramen-compare`,
+  },
+  description: SITE_DESCRIPTION,
+  openGraph: {
+    title: SITE_TITLE_DEFAULT,
     description: SITE_DESCRIPTION,
-    openGraph: {
-      title: SITE_TITLE_DEFAULT,
-      description: SITE_DESCRIPTION,
-      siteName: SITE_DISPLAY_NAME,
-      locale: "ja_JP",
-      type: "website",
-      images: [
-        {
-          url: DEFAULT_OG_IMAGE,
-          width: DEFAULT_OG_IMAGE_WIDTH,
-          height: DEFAULT_OG_IMAGE_HEIGHT,
-          alt: SITE_DISPLAY_NAME,
-        },
-      ],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: SITE_TITLE_DEFAULT,
-      description: SITE_DESCRIPTION,
-      images: [DEFAULT_OG_IMAGE],
-    },
-    icons: {
-      icon: [
-        { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
-        { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
-        { url: "/favicon-48x48.png", sizes: "48x48", type: "image/png" },
-      ],
-      apple: "/apple-touch-icon.png",
-    },
-    other: {
-      "google-adsense-account": "ca-pub-7938835154204291",
-    },
-  };
-}
+    siteName: SITE_DISPLAY_NAME,
+    locale: "ja_JP",
+    type: "website",
+    images: [
+      {
+        url: DEFAULT_OG_IMAGE,
+        width: DEFAULT_OG_IMAGE_WIDTH,
+        height: DEFAULT_OG_IMAGE_HEIGHT,
+        alt: SITE_DISPLAY_NAME,
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: SITE_TITLE_DEFAULT,
+    description: SITE_DESCRIPTION,
+    images: [DEFAULT_OG_IMAGE],
+  },
+  icons: {
+    icon: [
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-48x48.png", sizes: "48x48", type: "image/png" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
+  other: {
+    "google-adsense-account": "ca-pub-7938835154204291",
+  },
+};
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
