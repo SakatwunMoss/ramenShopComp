@@ -77,6 +77,7 @@ export const diagnoseCopy = {
     next: { ja: "次へ", en: "Next" },
     seeResults: { ja: "結果を見る", en: "See results" },
     diagnosing: { ja: "診断中…", en: "Finding matches…" },
+    restoring: { ja: "読み込み中…", en: "Loading…" },
     restart: { ja: "もう一度診断する", en: "Try again" },
     restartFromScratch: {
       ja: "最初からやり直す",

@@ -1,23 +1,55 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CompareFloatingBar } from "@/components/CompareFloatingBar";
 import { ShopGrid } from "@/components/ShopGrid";
 import { comparePagePath, MAX_COMPARE } from "@/lib/compare";
+import { sanitizeSelectedIds } from "@/lib/diagnose/persist";
 import type { Shop } from "@/lib/types";
 
 type ShopCompareGridProps = {
   shops: Shop[];
   /** 診断結果のマッチ理由（一致タグ） */
   matchReasonsById?: Record<string, string[]>;
+  /** 診断結果の比較選択を親で保持・復元するとき */
+  initialSelectedIds?: string[];
+  onSelectedIdsChange?: (ids: string[]) => void;
 };
+
+function shopsFromIds(shops: Shop[], ids: string[] | undefined): Shop[] {
+  if (!ids || ids.length === 0) return [];
+  const byId = new Map(shops.map((shop) => [shop.id, shop]));
+  const selected: Shop[] = [];
+  for (const id of sanitizeSelectedIds(ids, byId.keys(), MAX_COMPARE)) {
+    const shop = byId.get(id);
+    if (shop) selected.push(shop);
+  }
+  return selected;
+}
 
 export function ShopCompareGrid({
   shops,
   matchReasonsById,
+  initialSelectedIds,
+  onSelectedIdsChange,
 }: ShopCompareGridProps) {
-  const [selected, setSelected] = useState<Shop[]>([]);
+  const [selectedIds, setSelectedIds] = useState(() =>
+    sanitizeSelectedIds(
+      initialSelectedIds,
+      shops.map((shop) => shop.id),
+      MAX_COMPARE,
+    ),
+  );
   const [limitMessage, setLimitMessage] = useState<string | null>(null);
+
+  const selected = useMemo(
+    () => shopsFromIds(shops, selectedIds),
+    [shops, selectedIds],
+  );
+  const visibleSelectedIds = useMemo(
+    () => selected.map((item) => item.id),
+    [selected],
+  );
 
   useEffect(() => {
     if (!limitMessage) {
@@ -27,26 +59,37 @@ export function ShopCompareGrid({
     return () => window.clearTimeout(timer);
   }, [limitMessage]);
 
-  const toggleSelection = useCallback((shop: Shop) => {
-    setSelected((current) => {
-      const isSelected = current.some((item) => item.id === shop.id);
-      if (isSelected) {
-        return current.filter((item) => item.id !== shop.id);
-      }
-      if (current.length >= MAX_COMPARE) {
-        setLimitMessage(`比較は${MAX_COMPARE}店舗まで選択できます`);
-        return current;
-      }
-      return [...current, shop];
-    });
-  }, []);
+  useEffect(() => {
+    onSelectedIdsChange?.(visibleSelectedIds);
+  }, [visibleSelectedIds, onSelectedIdsChange]);
+
+  const toggleSelection = useCallback(
+    (shop: Shop) => {
+      setSelectedIds((current) => {
+        if (current.includes(shop.id)) {
+          return current.filter((id) => id !== shop.id);
+        }
+        const visibleCount = shopsFromIds(shops, current).length;
+        if (visibleCount >= MAX_COMPARE) {
+          setLimitMessage(`比較は${MAX_COMPARE}店舗まで選択できます`);
+          return current;
+        }
+        return sanitizeSelectedIds(
+          [...current, shop.id],
+          shops.map((item) => item.id),
+          MAX_COMPARE,
+        );
+      });
+    },
+    [shops],
+  );
 
   const removeSelection = useCallback((id: string) => {
-    setSelected((current) => current.filter((item) => item.id !== id));
+    setSelectedIds((current) => current.filter((item) => item !== id));
   }, []);
 
   const clearSelection = useCallback(() => {
-    setSelected([]);
+    setSelectedIds([]);
   }, []);
 
   return (
@@ -63,14 +106,14 @@ export function ShopCompareGrid({
       <ShopGrid
         shops={shops}
         compare={{
-          selectedIds: selected.map((item) => item.id),
+          selectedIds: visibleSelectedIds,
           onToggle: toggleSelection,
         }}
         matchReasonsById={matchReasonsById}
       />
 
       <CompareFloatingBar
-        compareHref={comparePagePath(selected.map((item) => item.id))}
+        compareHref={comparePagePath(visibleSelectedIds)}
         selected={selected.map((item) => ({
           id: item.id,
           name: item.name,

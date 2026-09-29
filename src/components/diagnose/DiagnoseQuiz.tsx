@@ -1,18 +1,35 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import {
   runDiagnose,
   type DiagnoseActionResult,
 } from "@/app/diagnose/actions";
 import { BilingualText } from "@/components/diagnose/BilingualText";
 import { DiagnoseAreaSelect } from "@/components/diagnose/DiagnoseAreaSelect";
+import { DIAGNOSE_FRESH_NAV_EVENT } from "@/components/diagnose/DiagnoseNavLink";
 import { ShopCompareGrid } from "@/components/ShopCompareGrid";
 import {
   diagnoseCopy,
   errorToBilingual,
   optionEn,
 } from "@/lib/diagnose/copy";
+import {
+  clearDiagnoseReturning,
+  clearDiagnoseState,
+  hasValidDiagnoseReturning,
+  readDiagnoseState,
+  sanitizeSelectedIds,
+  writeDiagnoseState,
+} from "@/lib/diagnose/persist";
 import {
   ANY_PREFERENCE,
   INBOUND_OPTIONS,
@@ -40,6 +57,8 @@ const STEPS: {
   { id: "inbound", title: diagnoseCopy.steps.inbound },
   { id: "result", title: diagnoseCopy.steps.result },
 ];
+
+const RESULT_STEP_INDEX = STEPS.findIndex((s) => s.id === "result");
 
 export type MiddleAreasByLarge = Record<string, AreaStat[]>;
 
@@ -78,8 +97,32 @@ export function DiagnoseQuiz({ largeAreas, middleByLarge }: Props) {
   > | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [hydrated, setHydrated] = useState(false);
+  const [restoringResults, setRestoringResults] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const resultsRef = useRef<HTMLElement | null>(null);
+  const skipPersistRef = useRef(true);
+  const shouldScrollToResultsRef = useRef(false);
+  const resultRef = useRef(result);
+
+  useEffect(() => {
+    resultRef.current = result;
+  }, [result]);
+
+  const handleSelectedIdsChange = useCallback((ids: string[]) => {
+    setSelectedIds((current) => {
+      if (
+        current.length === ids.length &&
+        current.every((id, i) => id === ids[i])
+      ) {
+        return current;
+      }
+      return ids;
+    });
+  }, []);
 
   const step = STEPS[stepIndex]!;
+  const finished = step.id === "result" && result !== null;
   const middleAreas = useMemo(
     () => (draft.largeArea ? (middleByLarge[draft.largeArea] ?? []) : []),
     [draft.largeArea, middleByLarge],
@@ -106,6 +149,133 @@ export function DiagnoseQuiz({ largeAreas, middleByLarge }: Props) {
     return map;
   }, [matchReasonsById]);
 
+  // マウント後に sessionStorage から復元（SSR ハイドレーション不一致を避ける）
+  useEffect(() => {
+    let cancelled = false;
+
+    async function restore() {
+      const saved = readDiagnoseState(
+        { largeAreas, middleByLarge },
+        STEPS.length,
+      );
+
+      if (!saved) {
+        if (!cancelled) {
+          skipPersistRef.current = false;
+          setHydrated(true);
+        }
+        return;
+      }
+
+      // 完了済みは returning があるときだけ復元（詳細→ホーム→診断の誤復元を防ぐ）
+      if (saved.finished && !hasValidDiagnoseReturning()) {
+        clearDiagnoseState();
+        if (!cancelled) {
+          skipPersistRef.current = false;
+          setHydrated(true);
+        }
+        return;
+      }
+
+      if (cancelled) return;
+
+      setDraft(saved.draft);
+      setError(null);
+      setSelectedIds(saved.selectedIds);
+
+      if (saved.finished) {
+        setRestoringResults(true);
+        setStepIndex(RESULT_STEP_INDEX);
+        shouldScrollToResultsRef.current = true;
+        try {
+          const res = await runDiagnose(saved.draft);
+          if (cancelled) return;
+          if (!res.ok) {
+            clearDiagnoseState();
+            setDraft(initialDraft());
+            setStepIndex(0);
+            setResult(null);
+            setSelectedIds([]);
+            setError(res.error);
+            shouldScrollToResultsRef.current = false;
+          } else {
+            const validIds = res.results.map((item) => item.shop.id);
+            setSelectedIds(
+              sanitizeSelectedIds(saved.selectedIds, validIds),
+            );
+            setResult(res);
+            setStepIndex(RESULT_STEP_INDEX);
+          }
+        } catch {
+          if (cancelled) return;
+          clearDiagnoseState();
+          setDraft(initialDraft());
+          setStepIndex(0);
+          setResult(null);
+          setSelectedIds([]);
+          shouldScrollToResultsRef.current = false;
+        } finally {
+          if (!cancelled) {
+            setRestoringResults(false);
+            skipPersistRef.current = false;
+            setHydrated(true);
+          }
+        }
+        return;
+      }
+
+      setStepIndex(saved.stepIndex);
+      setResult(null);
+      setSelectedIds([]);
+      skipPersistRef.current = false;
+      setHydrated(true);
+    }
+
+    void restore();
+    return () => {
+      cancelled = true;
+    };
+  }, [largeAreas, middleByLarge]);
+
+  // draft / stepIndex / finished / selectedIds の変化ごとに保存
+  useEffect(() => {
+    if (!hydrated || skipPersistRef.current) return;
+    writeDiagnoseState({
+      draft,
+      stepIndex,
+      finished,
+      selectedIds: finished ? selectedIds : [],
+    });
+  }, [draft, stepIndex, finished, selectedIds, hydrated]);
+
+  // 結果復元後にカード一覧付近へスクロール
+  useEffect(() => {
+    if (!hydrated || !finished || !resultsRef.current) return;
+    if (!shouldScrollToResultsRef.current) return;
+    shouldScrollToResultsRef.current = false;
+    try {
+      resultsRef.current.scrollIntoView({ block: "start", behavior: "auto" });
+    } catch {
+      resultsRef.current.scrollIntoView();
+    }
+  }, [hydrated, finished, result]);
+
+  // ヘッダー等から診断へ再入場したとき、完了済み UI を最初からに戻す
+  useEffect(() => {
+    function onFreshNav() {
+      if (!resultRef.current) return;
+      setDraft(initialDraft());
+      setResult(null);
+      setSelectedIds([]);
+      setError(null);
+      setStepIndex(0);
+    }
+    window.addEventListener(DIAGNOSE_FRESH_NAV_EVENT, onFreshNav);
+    return () => {
+      window.removeEventListener(DIAGNOSE_FRESH_NAV_EVENT, onFreshNav);
+    };
+  }, []);
+
   function goNext() {
     setError(null);
     if (step.id === "area") {
@@ -121,8 +291,9 @@ export function DiagnoseQuiz({ largeAreas, middleByLarge }: Props) {
           setError(res.error);
           return;
         }
+        setSelectedIds([]);
         setResult(res);
-        setStepIndex(STEPS.findIndex((s) => s.id === "result"));
+        setStepIndex(RESULT_STEP_INDEX);
       });
       return;
     }
@@ -133,6 +304,7 @@ export function DiagnoseQuiz({ largeAreas, middleByLarge }: Props) {
     setError(null);
     if (step.id === "result") {
       setResult(null);
+      setSelectedIds([]);
       setStepIndex(STEPS.findIndex((s) => s.id === "inbound"));
       return;
     }
@@ -140,8 +312,11 @@ export function DiagnoseQuiz({ largeAreas, middleByLarge }: Props) {
   }
 
   function restart() {
+    clearDiagnoseState();
+    clearDiagnoseReturning();
     setDraft(initialDraft());
     setResult(null);
+    setSelectedIds([]);
     setError(null);
     setStepIndex(0);
   }
@@ -153,21 +328,26 @@ export function DiagnoseQuiz({ largeAreas, middleByLarge }: Props) {
       ? diagnoseCopy.actions.seeResults
       : diagnoseCopy.actions.next;
 
+  const showPlaceholder = !hydrated || restoringResults;
+
   return (
     <div className="border-y border-line py-6 sm:py-8">
       <ol className="flex flex-wrap gap-x-2 gap-y-3 text-xs tracking-wider text-ink-muted uppercase">
         {STEPS.filter((s) => s.id !== "result").map((s, i) => {
-          const active = s.id === step.id;
-          const done = i < stepIndex || step.id === "result";
+          const active = !showPlaceholder && s.id === step.id;
+          const done =
+            !showPlaceholder && (i < stepIndex || step.id === "result");
           return (
             <li
               key={s.id}
               className={
-                active
-                  ? "text-lacquer"
-                  : done
-                    ? "text-ink"
-                    : "text-ink-muted/60"
+                showPlaceholder
+                  ? "text-ink-muted/60"
+                  : active
+                    ? "text-lacquer"
+                    : done
+                      ? "text-ink"
+                      : "text-ink-muted/60"
               }
             >
               <span className="inline-flex flex-col">
@@ -192,7 +372,23 @@ export function DiagnoseQuiz({ largeAreas, middleByLarge }: Props) {
       </ol>
 
       <div className="mt-8 min-h-[220px]">
-        {step.id === "area" ? (
+        {showPlaceholder ? (
+          <div
+            className="flex min-h-[220px] items-center justify-center"
+            aria-busy="true"
+            aria-live="polite"
+          >
+            <BilingualText
+              as="p"
+              ja={diagnoseCopy.actions.restoring.ja}
+              en={diagnoseCopy.actions.restoring.en}
+              className="text-sm text-ink-muted"
+              tone="muted"
+            />
+          </div>
+        ) : null}
+
+        {!showPlaceholder && step.id === "area" ? (
           <section>
             <BilingualText
               as="h2"
@@ -230,7 +426,7 @@ export function DiagnoseQuiz({ largeAreas, middleByLarge }: Props) {
           </section>
         ) : null}
 
-        {step.id === "soup" ? (
+        {!showPlaceholder && step.id === "soup" ? (
           <ChoiceStep
             title={diagnoseCopy.questions.soup}
             options={SOUP_OPTIONS}
@@ -241,7 +437,7 @@ export function DiagnoseQuiz({ largeAreas, middleByLarge }: Props) {
           />
         ) : null}
 
-        {step.id === "spicy" ? (
+        {!showPlaceholder && step.id === "spicy" ? (
           <ChoiceStep
             title={diagnoseCopy.questions.spicy}
             options={SPICY_OPTIONS}
@@ -252,7 +448,7 @@ export function DiagnoseQuiz({ largeAreas, middleByLarge }: Props) {
           />
         ) : null}
 
-        {step.id === "richness" ? (
+        {!showPlaceholder && step.id === "richness" ? (
           <ChoiceStep
             title={diagnoseCopy.questions.richness}
             options={RICHNESS_OPTIONS}
@@ -266,7 +462,7 @@ export function DiagnoseQuiz({ largeAreas, middleByLarge }: Props) {
           />
         ) : null}
 
-        {step.id === "inbound" ? (
+        {!showPlaceholder && step.id === "inbound" ? (
           <ChoiceStep
             title={diagnoseCopy.questions.inbound}
             options={INBOUND_OPTIONS}
@@ -280,16 +476,19 @@ export function DiagnoseQuiz({ largeAreas, middleByLarge }: Props) {
           />
         ) : null}
 
-        {step.id === "result" && result ? (
+        {!showPlaceholder && step.id === "result" && result ? (
           <ResultsSection
+            ref={resultsRef}
             result={result}
             matchReasonsById={matchReasonsDisplayById}
+            initialSelectedIds={selectedIds}
+            onSelectedIdsChange={handleSelectedIdsChange}
             onRestart={restart}
           />
         ) : null}
       </div>
 
-      {errorCopy ? (
+      {errorCopy && !showPlaceholder ? (
         <div
           className="mt-6 border border-[#e8b86d]/50 bg-[#fff6e8] px-4 py-3 text-sm text-[#7a5520]"
           role="alert"
@@ -302,7 +501,7 @@ export function DiagnoseQuiz({ largeAreas, middleByLarge }: Props) {
         </div>
       ) : null}
 
-      {step.id !== "result" ? (
+      {!showPlaceholder && step.id !== "result" ? (
         <div className="mt-8 flex flex-wrap gap-3">
           {stepIndex > 0 ? (
             <button
@@ -382,15 +581,25 @@ function ChoiceStep({
   );
 }
 
-function ResultsSection({
-  result,
-  matchReasonsById,
-  onRestart,
-}: {
-  result: Extract<DiagnoseActionResult, { ok: true }>;
-  matchReasonsById?: Record<string, string[]>;
-  onRestart: () => void;
-}) {
+const ResultsSection = forwardRef<
+  HTMLElement,
+  {
+    result: Extract<DiagnoseActionResult, { ok: true }>;
+    matchReasonsById?: Record<string, string[]>;
+    initialSelectedIds: string[];
+    onSelectedIdsChange: (ids: string[]) => void;
+    onRestart: () => void;
+  }
+>(function ResultsSection(
+  {
+    result,
+    matchReasonsById,
+    initialSelectedIds,
+    onSelectedIdsChange,
+    onRestart,
+  },
+  ref,
+) {
   const heading = result.hasPreferenceMatch
     ? diagnoseCopy.results.preferenceMatch
     : diagnoseCopy.results.areaRecommend(result.middleAreaName);
@@ -401,7 +610,7 @@ function ResultsSection({
       result.middleAreaName,
     );
     return (
-      <section>
+      <section ref={ref}>
         <BilingualText
           as="h2"
           ja={diagnoseCopy.results.emptyTitle.ja}
@@ -442,7 +651,7 @@ function ResultsSection({
   );
 
   return (
-    <section>
+    <section ref={ref}>
       <BilingualText
         as="h2"
         ja={heading.ja}
@@ -459,7 +668,12 @@ function ResultsSection({
         tone="muted"
       />
 
-      <ShopCompareGrid shops={shops} matchReasonsById={matchReasonsById} />
+      <ShopCompareGrid
+        shops={shops}
+        matchReasonsById={matchReasonsById}
+        initialSelectedIds={initialSelectedIds}
+        onSelectedIdsChange={onSelectedIdsChange}
+      />
 
       <div className="mt-8 flex flex-wrap gap-3">
         <button
@@ -475,4 +689,4 @@ function ResultsSection({
       </div>
     </section>
   );
-}
+});

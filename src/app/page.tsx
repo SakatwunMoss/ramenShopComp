@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { AdSenseSlot } from "@/components/AdSenseSlot";
+import { DiagnoseNavLink } from "@/components/diagnose/DiagnoseNavLink";
 import { JsonLd } from "@/components/JsonLd";
 import { Pagination } from "@/components/Pagination";
 import { ShopCompareGrid } from "@/components/ShopCompareGrid";
@@ -96,7 +97,7 @@ export default async function HomePage({
             気になる店を選んで横並び比較。次に行く一杯を、迷わず決める。
           </p>
           <div className="animate-rise-delay mt-3 flex flex-col gap-2.5 sm:mt-5 sm:gap-3">
-            <Link
+            <DiagnoseNavLink
               href="/diagnose"
               className="inline-flex w-full flex-col items-center justify-center bg-lacquer px-5 py-3 text-sm font-medium text-steam transition hover:bg-lacquer-deep sm:w-auto sm:items-start sm:self-start sm:px-8 sm:py-3.5 sm:text-base"
             >
@@ -107,7 +108,7 @@ export default async function HomePage({
               >
                 Start preference quiz
               </span>
-            </Link>
+            </DiagnoseNavLink>
             <div className="flex flex-wrap gap-2 sm:gap-3">
               <a
                 href="#shops"
@@ -155,7 +156,7 @@ export default async function HomePage({
               </span>
             </p>
           </div>
-          <Link
+          <DiagnoseNavLink
             href="/diagnose"
             className="inline-flex w-full shrink-0 flex-col items-center justify-center bg-lacquer px-5 py-3 text-sm font-medium text-steam transition hover:bg-lacquer-deep sm:w-auto sm:items-start sm:px-6"
           >
@@ -166,7 +167,7 @@ export default async function HomePage({
             >
               Start preference quiz
             </span>
-          </Link>
+          </DiagnoseNavLink>
         </aside>
 
         <section id="shops" className="scroll-mt-20 pb-16">

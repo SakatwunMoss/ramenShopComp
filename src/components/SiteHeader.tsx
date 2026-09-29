@@ -2,16 +2,19 @@
 
 import Link from "next/link";
 import { useEffect, useId, useState, type ReactNode } from "react";
+import { DiagnoseNavLink } from "@/components/diagnose/DiagnoseNavLink";
 
 type NavLink = {
   href: string;
   label: ReactNode;
+  diagnose?: boolean;
 };
 
 const NAV_LINKS: NavLink[] = [
   { href: "/#shops", label: "店舗一覧" },
   {
     href: "/diagnose",
+    diagnose: true,
     label: (
       <>
         <span lang="ja">好み診断</span>
@@ -78,15 +81,25 @@ export function SiteHeader() {
             className="hidden items-center gap-5 text-sm text-ink-muted sm:flex"
             aria-label="メインナビゲーション"
           >
-            {NAV_LINKS.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="inline-flex items-baseline gap-1.5 transition hover:text-lacquer"
-              >
-                {item.label}
-              </Link>
-            ))}
+            {NAV_LINKS.map((item) =>
+              item.diagnose ? (
+                <DiagnoseNavLink
+                  key={item.href}
+                  href={item.href}
+                  className="inline-flex items-baseline gap-1.5 transition hover:text-lacquer"
+                >
+                  {item.label}
+                </DiagnoseNavLink>
+              ) : (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="inline-flex items-baseline gap-1.5 transition hover:text-lacquer"
+                >
+                  {item.label}
+                </Link>
+              ),
+            )}
           </nav>
 
           <button
@@ -127,16 +140,27 @@ export function SiteHeader() {
             className="mx-auto flex max-w-6xl flex-col px-2 py-2 text-base text-ink"
             aria-label="モバイルナビゲーション"
           >
-            {NAV_LINKS.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="inline-flex min-h-11 items-center gap-1.5 px-3 py-2 transition hover:bg-lacquer/10 hover:text-lacquer"
-                onClick={() => setOpen(false)}
-              >
-                {item.label}
-              </Link>
-            ))}
+            {NAV_LINKS.map((item) =>
+              item.diagnose ? (
+                <DiagnoseNavLink
+                  key={item.href}
+                  href={item.href}
+                  className="inline-flex min-h-11 items-center gap-1.5 px-3 py-2 transition hover:bg-lacquer/10 hover:text-lacquer"
+                  onClick={() => setOpen(false)}
+                >
+                  {item.label}
+                </DiagnoseNavLink>
+              ) : (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="inline-flex min-h-11 items-center gap-1.5 px-3 py-2 transition hover:bg-lacquer/10 hover:text-lacquer"
+                  onClick={() => setOpen(false)}
+                >
+                  {item.label}
+                </Link>
+              ),
+            )}
           </nav>
         </div>
       </div>

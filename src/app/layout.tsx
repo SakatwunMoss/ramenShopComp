@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
+import { DiagnoseReturningGuard } from "@/components/diagnose/DiagnoseReturningGuard";
 import { GoogleAnalytics } from "@/components/GoogleAnalytics";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -83,6 +84,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="ja" className="h-full antialiased">
       <body className="flex min-h-full flex-col">
         <GoogleAnalytics />
+        <DiagnoseReturningGuard />
         <SiteHeader />
         <main className="flex-1">{children}</main>
         <SiteFooter />
