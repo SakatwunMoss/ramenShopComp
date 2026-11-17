@@ -13,6 +13,9 @@ export const DEFAULT_OG_IMAGE_HEIGHT = 630;
 /** 一覧の1ページあたり件数（LCP対策） */
 export const SHOPS_PAGE_SIZE = 24;
 
+/** 系統フィルタ時、この件数以下ならエリア誘導の注意書きを出す */
+export const STYLE_FEW_RESULTS_THRESHOLD = 5;
+
 /** サイトマップ1ファイルあたりの店舗URL上限（Google上限50,000未満） */
 export const SITEMAP_SHOP_CHUNK = 5000;
 
