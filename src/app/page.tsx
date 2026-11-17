@@ -3,7 +3,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { AffiliateProducts } from "@/components/AffiliateProducts";
 import { DiagnoseNavLink } from "@/components/diagnose/DiagnoseNavLink";
-import { FewResultsNotice } from "@/components/FewResultsNotice";
 import { JsonLd } from "@/components/JsonLd";
 import { Pagination } from "@/components/Pagination";
 import { ShopCompareGrid } from "@/components/ShopCompareGrid";
@@ -14,19 +13,19 @@ import {
   buildJsonLdGraph,
 } from "@/lib/json-ld";
 import { buildPageMetadata } from "@/lib/seo";
-import {
-  SITE_DESCRIPTION,
-  SITE_TITLE_DEFAULT,
-  SHOPS_PAGE_SIZE,
-  STYLE_FEW_RESULTS_THRESHOLD,
-} from "@/lib/site";
+import { SHOPS_PAGE_SIZE } from "@/lib/site";
 import { getAreaLabel, isShopsDataAvailable, listLargeAreas, listShopsPaginated } from "@/lib/shops";
 
 export const dynamic = "force-dynamic";
 
+/** トップ専用メタ（SITE_* は layout 等でも使うため定数は変更しない） */
+const HOME_TITLE =
+  "全国ラーメン店比較｜エリアでくらべる | Compare ramen shops across Japan";
+const HOME_DESCRIPTION =
+  "全国のラーメン店をエリアから比較・検索。ホットペッパーグルメ掲載店舗を中心に、予算などで横並び比較できます。好み診断や系統ガイドも利用できます。 Compare ramen shops in Japan by area.";
+
 type SearchParams = Promise<{
   area?: string;
-  style?: string;
   q?: string;
   scope?: string;
   page?: string;
@@ -34,8 +33,8 @@ type SearchParams = Promise<{
 
 export async function generateMetadata(): Promise<Metadata> {
   return buildPageMetadata({
-    title: SITE_TITLE_DEFAULT,
-    description: SITE_DESCRIPTION,
+    title: HOME_TITLE,
+    description: HOME_DESCRIPTION,
     path: "/",
     absoluteTitle: true,
   });
@@ -55,7 +54,6 @@ export default async function HomePage({
     listShopsPaginated(
       {
         area: params.area,
-        style: params.style,
         q: params.q,
         ramenOnly,
       },
@@ -67,9 +65,6 @@ export default async function HomePage({
   ]);
 
   const { shops, total, totalPages } = paginated;
-  const hasStyle = Boolean(params.style?.trim());
-  const showFewResultsNotice =
-    hasShopsData && hasStyle && total <= STYLE_FEW_RESULTS_THRESHOLD;
 
   const jsonLd = buildJsonLdGraph([
     buildBreadcrumbNode([{ name: "トップ", path: "/" }]),
@@ -96,7 +91,7 @@ export default async function HomePage({
             <span className="text-lacquer">Ramen</span> Compare
           </p>
           <h1 className="animate-rise-delay mt-1.5 max-w-xl text-xs font-medium leading-snug text-ink sm:mt-3 sm:text-lg md:text-xl">
-            全国のラーメン店を、エリアと系統でくらべる。
+            全国のラーメン店を、エリアでくらべる。
           </h1>
           <p className="animate-rise-delay mt-1 hidden max-w-md text-sm leading-relaxed text-ink-muted sm:mt-2 sm:block">
             気になる店を選んで横並び比較。次に行く一杯を、迷わず決める。
@@ -195,19 +190,13 @@ export default async function HomePage({
             areas={areas}
             currentArea={params.area}
             currentAreaName={selectedAreaLabel ?? undefined}
-            currentStyle={params.style}
             currentQ={params.q}
             currentScope={ramenOnly ? "ramen" : "all"}
           />
 
-          <AffiliateProducts
-            styleKeys={[params.style]}
-            limit={2}
-            className="mt-8"
-          />
+          <AffiliateProducts styleKeys={[]} limit={2} className="mt-8" />
 
-          {/* 少数ヒット注意書きがあるときは誘導が重複するため、常時案内は出さない */}
-          {areas.length > 0 && !showFewResultsNotice && (
+          {areas.length > 0 && (
             <p className="mt-4 text-sm text-ink-muted">
               エリア別の一覧は{" "}
               <Link href="/areas" className="text-lacquer underline-offset-2 hover:underline">
@@ -246,15 +235,6 @@ export default async function HomePage({
             </p>
           )}
 
-          {hasShopsData && (
-            <FewResultsNotice
-              total={total}
-              hasStyle={hasStyle}
-              areaCode={params.area}
-              areaLabel={selectedAreaLabel ?? undefined}
-            />
-          )}
-
           {shops.length > 0 && <ShopCompareGrid shops={shops} />}
 
           <Pagination
@@ -263,7 +243,6 @@ export default async function HomePage({
             basePath="/#shops"
             searchParams={{
               area: params.area,
-              style: params.style,
               q: params.q,
               scope: params.scope,
             }}

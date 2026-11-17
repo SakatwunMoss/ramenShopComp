@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { RAMEN_STYLES } from "@/lib/types";
 import type { AreaStat } from "@/lib/shops";
 
 type Props = {
@@ -7,7 +6,6 @@ type Props = {
   currentArea?: string;
   /** 選択中エリアの表示名（未指定時は areas から解決） */
   currentAreaName?: string;
-  currentStyle?: string;
   currentQ?: string;
   /** 省略時・"ramen" = ラーメン店のみ / "all" = キーワード該当すべて */
   currentScope?: string;
@@ -17,12 +15,10 @@ export function ShopFilters({
   areas,
   currentArea,
   currentAreaName: currentAreaNameProp,
-  currentStyle,
   currentQ,
   currentScope = "ramen",
 }: Props) {
-  const hasActive =
-    currentArea || currentStyle || currentQ || currentScope === "all";
+  const hasActive = currentArea || currentQ || currentScope === "all";
   const currentAreaName =
     currentAreaNameProp ??
     areas.find((a) => a.code === currentArea)?.name ??
@@ -35,7 +31,7 @@ export function ShopFilters({
       className="flex flex-col gap-4 border-y border-line py-5"
     >
       <div className="flex flex-wrap items-end gap-3">
-        <label className="flex min-w-[140px] flex-1 flex-col gap-1 text-xs tracking-wider text-ink-muted uppercase">
+        <label className="flex min-w-[160px] flex-[1.4] flex-col gap-1 text-xs tracking-wider text-ink-muted uppercase">
           エリア
           <select
             name="area"
@@ -51,31 +47,7 @@ export function ShopFilters({
           </select>
         </label>
 
-        <div className="flex min-w-[140px] flex-1 flex-col gap-1">
-          <div className="flex items-baseline justify-between gap-2 text-xs tracking-wider text-ink-muted uppercase">
-            <span>系統</span>
-            <Link
-              href="/guide/ramen-styles"
-              className="normal-case tracking-normal text-[11px] text-lacquer underline-offset-2 hover:underline"
-            >
-              What do these styles mean?
-            </Link>
-          </div>
-          <select
-            name="style"
-            defaultValue={currentStyle ?? ""}
-            className="h-11 border border-line bg-steam px-3 text-sm text-ink outline-none focus:border-lacquer"
-          >
-            <option value="">すべて</option>
-            {RAMEN_STYLES.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <label className="flex min-w-[160px] flex-1 flex-col gap-1 text-xs tracking-wider text-ink-muted uppercase">
+        <label className="flex min-w-[140px] flex-1 flex-col gap-1 text-xs tracking-wider text-ink-muted uppercase">
           対象
           <select
             name="scope"
@@ -87,7 +59,7 @@ export function ShopFilters({
           </select>
         </label>
 
-        <label className="flex min-w-[180px] flex-[2] flex-col gap-1 text-xs tracking-wider text-ink-muted uppercase">
+        <label className="flex min-w-[180px] flex-[1.6] flex-col gap-1 text-xs tracking-wider text-ink-muted uppercase">
           店名
           <input
             type="search"
