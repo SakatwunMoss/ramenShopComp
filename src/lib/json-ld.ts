@@ -1,5 +1,6 @@
 import type { Shop } from "./types";
 import { budgetToPriceRange } from "./seo";
+import { preferShopPhotoLarge } from "./shop-photo";
 import { absoluteUrl } from "./site";
 
 export type BreadcrumbItem = {
@@ -46,7 +47,8 @@ export function buildRestaurantNode(
     };
   }
 
-  const image = absoluteImage(shop.image_url);
+  const photo = preferShopPhotoLarge(shop.image_url);
+  const image = absoluteImage(photo?.src ?? shop.image_url);
   if (image) node.image = image;
 
   if (shop.phone) node.telephone = shop.phone;
