@@ -110,6 +110,11 @@ export const diagnoseCopy = {
       ja: `${large}・${middle}の候補 ${candidateCount.toLocaleString("ja-JP")} 件から、上位 ${shown} 件を表示しています。気になる店を選んで比較できます。`,
       en: `Showing top ${shown} of ${candidateCount.toLocaleString("en-US")} shops in ${large} / ${middle}. Select shops to compare.`,
     }),
+    /** 結果画面から系統ガイドへの導線（質問画面では出さない） */
+    styleGuideLink: {
+      ja: "系統の説明を見る",
+      en: "See ramen style guide",
+    },
   },
   errors: {
     invalidPrefs: {

@@ -9,6 +9,7 @@ import {
   useState,
   useTransition,
 } from "react";
+import Link from "next/link";
 import {
   runDiagnose,
   type DiagnoseActionResult,
@@ -643,6 +644,17 @@ const ResultsSection = forwardRef<
           className="mt-3 text-sm text-ink-muted"
           tone="muted"
         />
+        <p className="mt-4">
+          <Link
+            href="/guide/ramen-styles"
+            className="inline-flex min-h-11 flex-col justify-center text-sm text-lacquer underline-offset-2 hover:underline"
+          >
+            <BilingualText
+              ja={diagnoseCopy.results.styleGuideLink.ja}
+              en={diagnoseCopy.results.styleGuideLink.en}
+            />
+          </Link>
+        </p>
         <button
           type="button"
           onClick={onRestart}
@@ -690,6 +702,19 @@ const ResultsSection = forwardRef<
         className="mt-2 text-sm text-ink-muted"
         tone="muted"
       />
+
+      {/* 系統フィルタ廃止後の代替導線。guide 側に系統アンカーは無いためページ先頭へ */}
+      <p className="mt-4">
+        <Link
+          href="/guide/ramen-styles"
+          className="inline-flex min-h-11 flex-col justify-center text-sm text-lacquer underline-offset-2 hover:underline"
+        >
+          <BilingualText
+            ja={diagnoseCopy.results.styleGuideLink.ja}
+            en={diagnoseCopy.results.styleGuideLink.en}
+          />
+        </Link>
+      </p>
 
       <ShopCompareGrid
         shops={shops}
