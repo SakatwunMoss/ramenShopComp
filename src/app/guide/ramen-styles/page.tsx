@@ -1,5 +1,6 @@
 import Image from "next/image";
 import type { Metadata } from "next";
+import { AffiliateProducts } from "@/components/AffiliateProducts";
 import { buildPageMetadata } from "@/lib/seo";
 import {
   formatImageCredit,
@@ -7,6 +8,9 @@ import {
   type RamenStyleImageKey,
 } from "@/lib/ramen-style-images";
 import { RAMEN_STYLES, type RamenStyleId } from "@/lib/types";
+
+/** アフィリエイト JSON（R2）更新に合わせて再生成 */
+export const revalidate = 86_400;
 
 export const metadata: Metadata = buildPageMetadata({
   title: "Ramen Style Guide | Types of Ramen Explained",
@@ -141,6 +145,14 @@ export default function RamenStylesGuidePage() {
                 </figure>
 
                 <p className="mt-3">{style.description}</p>
+
+                {style.styleId ? (
+                  <AffiliateProducts
+                    styleKeys={[style.styleId]}
+                    limit={2}
+                    className="mt-5"
+                  />
+                ) : null}
               </section>
             );
           })}

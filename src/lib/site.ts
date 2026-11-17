@@ -19,6 +19,12 @@ export const STYLE_FEW_RESULTS_THRESHOLD = 5;
 /** サイトマップ1ファイルあたりの店舗URL上限（Google上限50,000未満） */
 export const SITEMAP_SHOP_CHUNK = 5000;
 
+/**
+ * お問い合わせ用メール（本番投入前のプレースホルダ）。
+ * 差し替え後は /about・/privacy の両方に反映される。
+ */
+export const CONTACT_EMAIL = "contact@example.com";
+
 export function getSiteUrl(): string {
   const fromEnv = process.env.NEXT_PUBLIC_SITE_URL?.trim();
   if (fromEnv) return fromEnv.replace(/\/$/, "");

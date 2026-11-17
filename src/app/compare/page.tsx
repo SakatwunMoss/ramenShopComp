@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
+import { AffiliateProducts } from "@/components/AffiliateProducts";
 import { CompareTable } from "@/components/CompareTable";
 import {
   comparePagePath,
   MAX_COMPARE,
   parseCompareIds,
 } from "@/lib/compare";
+import { inferRamenStyleFromShop } from "@/lib/seo-en";
 import { isShopsDataAvailable, getShopsByIds } from "@/lib/shops";
 
 export const dynamic = "force-dynamic";
@@ -86,6 +88,12 @@ export default async function ComparePage({ searchParams }: PageProps) {
       </header>
 
       <CompareTable shops={shops} />
+
+      <AffiliateProducts
+        styleKeys={shops.map((shop) => inferRamenStyleFromShop(shop)?.id)}
+        limit={2}
+        className="mt-8"
+      />
 
       <p className="mt-6 text-xs text-ink-muted/70">
         ※営業時間・定休日などは変動する場合があります。来店前に各店舗の最新情報をご確認ください。

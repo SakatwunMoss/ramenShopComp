@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
-import { AdSenseSlot } from "@/components/AdSenseSlot";
+import { AffiliateProducts } from "@/components/AffiliateProducts";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { JsonLd } from "@/components/JsonLd";
 import { RelatedShops } from "@/components/RelatedShops";
@@ -262,7 +262,11 @@ export default async function ShopDetailPage({ params }: Props) {
             />
           )}
 
-          <AdSenseSlot slot="shop-detail" />
+          <AffiliateProducts
+            styleKeys={[style?.id ?? "general"]}
+            limit={2}
+            className="mt-6"
+          />
         </div>
       </div>
 

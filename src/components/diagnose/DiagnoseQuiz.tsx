@@ -13,10 +13,16 @@ import {
   runDiagnose,
   type DiagnoseActionResult,
 } from "@/app/diagnose/actions";
+import { AffiliateProductsView } from "@/components/AffiliateProductsView";
 import { BilingualText } from "@/components/diagnose/BilingualText";
 import { DiagnoseAreaSelect } from "@/components/diagnose/DiagnoseAreaSelect";
 import { DIAGNOSE_FRESH_NAV_EVENT } from "@/components/diagnose/DiagnoseNavLink";
 import { ShopCompareGrid } from "@/components/ShopCompareGrid";
+import {
+  selectAffiliateProducts,
+  soupPreferenceToStyleKey,
+} from "@/lib/affiliate/select";
+import type { AffiliateProductsSnapshot } from "@/lib/affiliate/types";
 import {
   diagnoseCopy,
   errorToBilingual,
@@ -65,6 +71,7 @@ export type MiddleAreasByLarge = Record<string, AreaStat[]>;
 type Props = {
   largeAreas: AreaStat[];
   middleByLarge: MiddleAreasByLarge;
+  affiliateSnapshot?: AffiliateProductsSnapshot | null;
 };
 
 type Draft = DiagnosePreferences;
@@ -88,7 +95,11 @@ const optionButtonClass = (selected: boolean) =>
       : "border-line bg-steam/70 text-ink hover:border-lacquer/50",
   ].join(" ");
 
-export function DiagnoseQuiz({ largeAreas, middleByLarge }: Props) {
+export function DiagnoseQuiz({
+  largeAreas,
+  middleByLarge,
+  affiliateSnapshot = null,
+}: Props) {
   const [stepIndex, setStepIndex] = useState(0);
   const [draft, setDraft] = useState<Draft>(initialDraft);
   const [result, setResult] = useState<Extract<
@@ -480,6 +491,8 @@ export function DiagnoseQuiz({ largeAreas, middleByLarge }: Props) {
           <ResultsSection
             ref={resultsRef}
             result={result}
+            soup={draft.soup}
+            affiliateSnapshot={affiliateSnapshot}
             matchReasonsById={matchReasonsDisplayById}
             initialSelectedIds={selectedIds}
             onSelectedIdsChange={handleSelectedIdsChange}
@@ -585,6 +598,8 @@ const ResultsSection = forwardRef<
   HTMLElement,
   {
     result: Extract<DiagnoseActionResult, { ok: true }>;
+    soup: SoupPreference;
+    affiliateSnapshot: AffiliateProductsSnapshot | null;
     matchReasonsById?: Record<string, string[]>;
     initialSelectedIds: string[];
     onSelectedIdsChange: (ids: string[]) => void;
@@ -593,6 +608,8 @@ const ResultsSection = forwardRef<
 >(function ResultsSection(
   {
     result,
+    soup,
+    affiliateSnapshot,
     matchReasonsById,
     initialSelectedIds,
     onSelectedIdsChange,
@@ -649,6 +666,12 @@ const ResultsSection = forwardRef<
     result.candidateCount,
     shops.length,
   );
+  const styleKey = soupPreferenceToStyleKey(soup);
+  const affiliateProducts = selectAffiliateProducts(
+    affiliateSnapshot,
+    styleKey ? [styleKey] : [],
+    2,
+  );
 
   return (
     <section ref={ref}>
@@ -674,6 +697,8 @@ const ResultsSection = forwardRef<
         initialSelectedIds={initialSelectedIds}
         onSelectedIdsChange={onSelectedIdsChange}
       />
+
+      <AffiliateProductsView products={affiliateProducts} className="mt-8" />
 
       <div className="mt-8 flex flex-wrap gap-3">
         <button

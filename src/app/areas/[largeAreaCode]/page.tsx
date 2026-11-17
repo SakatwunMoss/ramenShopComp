@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
-import { AdSenseSlot } from "@/components/AdSenseSlot";
+import { AffiliateProducts } from "@/components/AffiliateProducts";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { JsonLd } from "@/components/JsonLd";
 import { Pagination } from "@/components/Pagination";
@@ -177,8 +177,6 @@ export default async function LargeAreaPage({ params, searchParams }: Props) {
         </section>
       )}
 
-      <AdSenseSlot className="my-8" slot="area-large" />
-
       <section className="pb-8">
         <div className="mb-2 flex items-end justify-between gap-4">
           <h2 className="font-[family-name:var(--font-display)] text-2xl tracking-wide">
@@ -192,6 +190,8 @@ export default async function LargeAreaPage({ params, searchParams }: Props) {
         <p className="mb-4 text-sm text-ink-muted">
           最大3店舗まで選んでくらべられます
         </p>
+
+        <AffiliateProducts styleKeys={[]} limit={2} className="mb-8" />
 
         {paginated.shops.length > 0 && (
           <ShopCompareGrid shops={paginated.shops} />

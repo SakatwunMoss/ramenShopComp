@@ -42,6 +42,22 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "imgfp.hotp.jp",
       },
+      {
+        protocol: "https",
+        hostname: "thumbnail.image.rakuten.co.jp",
+      },
+      {
+        protocol: "https",
+        hostname: "tshop.r10s.jp",
+      },
+      {
+        protocol: "https",
+        hostname: "shop.r10s.jp",
+      },
+      {
+        protocol: "https",
+        hostname: "placehold.co",
+      },
     ],
   },
 };

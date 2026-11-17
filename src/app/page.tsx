@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { AdSenseSlot } from "@/components/AdSenseSlot";
+import { AffiliateProducts } from "@/components/AffiliateProducts";
 import { DiagnoseNavLink } from "@/components/diagnose/DiagnoseNavLink";
 import { FewResultsNotice } from "@/components/FewResultsNotice";
 import { JsonLd } from "@/components/JsonLd";
@@ -133,9 +133,7 @@ export default async function HomePage({
       </section>
 
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <AdSenseSlot className="my-10" slot="home-top" />
-
-        <aside className="mb-10 flex flex-col gap-4 border border-line bg-lacquer/10 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-6 sm:py-6">
+        <aside className="mb-10 mt-10 flex flex-col gap-4 border border-line bg-lacquer/10 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-6 sm:py-6">
           <div className="min-w-0">
             <p className="font-[family-name:var(--font-display)] text-lg tracking-wide text-ink sm:text-xl">
               <span lang="ja" className="block">
@@ -202,6 +200,12 @@ export default async function HomePage({
             currentScope={ramenOnly ? "ramen" : "all"}
           />
 
+          <AffiliateProducts
+            styleKeys={[params.style]}
+            limit={2}
+            className="mt-8"
+          />
+
           {/* 少数ヒット注意書きがあるときは誘導が重複するため、常時案内は出さない */}
           {areas.length > 0 && !showFewResultsNotice && (
             <p className="mt-4 text-sm text-ink-muted">
@@ -264,8 +268,6 @@ export default async function HomePage({
               scope: params.scope,
             }}
           />
-
-          <AdSenseSlot className="mt-12" slot="home-bottom" />
         </section>
       </div>
     </>

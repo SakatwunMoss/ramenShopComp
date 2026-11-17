@@ -19,6 +19,9 @@ export function SiteFooter() {
           </a>
           .
         </p>
+        <p className="max-w-2xl leading-relaxed text-steam/80">
+          当サイトはアフィリエイト広告を利用しています。
+        </p>
         <p className="flex flex-wrap gap-4 text-steam/80">
           <Link
             href="/areas"
@@ -31,6 +34,12 @@ export function SiteFooter() {
             className="underline decoration-steam/40 underline-offset-2 hover:decoration-steam"
           >
             このサイトについて
+          </Link>
+          <Link
+            href="/privacy"
+            className="underline decoration-steam/40 underline-offset-2 hover:decoration-steam"
+          >
+            プライバシーポリシー
           </Link>
           <Link
             href="/guide/ramen-styles"

@@ -30,6 +30,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.4,
       },
       {
+        url: `${base}/privacy`,
+        lastModified: now,
+        changeFrequency: "monthly",
+        priority: 0.3,
+      },
+      {
         url: `${base}/guide/ramen-styles`,
         lastModified: now,
         changeFrequency: "monthly",

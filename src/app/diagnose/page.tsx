@@ -4,6 +4,7 @@ import {
   DiagnoseQuiz,
   type MiddleAreasByLarge,
 } from "@/components/diagnose/DiagnoseQuiz";
+import { loadAffiliateSnapshot } from "@/lib/affiliate/products-data";
 import { diagnoseCopy } from "@/lib/diagnose/copy";
 import { buildPageMetadata } from "@/lib/seo";
 import { listLargeAreas, listMiddleAreas } from "@/lib/shops";
@@ -37,7 +38,10 @@ async function loadAreaOptions(): Promise<{
 }
 
 export default async function DiagnosePage() {
-  const { largeAreas, middleByLarge } = await loadAreaOptions();
+  const [{ largeAreas, middleByLarge }, affiliateSnapshot] = await Promise.all([
+    loadAreaOptions(),
+    loadAffiliateSnapshot(),
+  ]);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
@@ -60,7 +64,11 @@ export default async function DiagnosePage() {
       </header>
 
       <div className="mt-10">
-        <DiagnoseQuiz largeAreas={largeAreas} middleByLarge={middleByLarge} />
+        <DiagnoseQuiz
+          largeAreas={largeAreas}
+          middleByLarge={middleByLarge}
+          affiliateSnapshot={affiliateSnapshot}
+        />
       </div>
     </div>
   );
