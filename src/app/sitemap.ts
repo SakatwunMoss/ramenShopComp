@@ -6,8 +6,8 @@ import {
   listShopSitemapEntries,
 } from "@/lib/shops";
 
-/** R2 スナップショットの TTL に合わせる（force-dynamic だと毎リクエスト全件再構築で 5xx リスク） */
-export const revalidate = 86_400;
+/** R2 依存のため静的生成しない（ビルド時の空 sitemap 焼き込みを防ぐ） */
+export const dynamic = "force-dynamic";
 
 /** 店舗数が増えたら generateSitemaps() で分割に戻す（現状 ~2,300 URL） */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {

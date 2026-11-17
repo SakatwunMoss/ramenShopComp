@@ -1,4 +1,5 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { unstable_noStore as noStore } from "next/cache";
 import sampleSnapshot from "../../../data/affiliate-products.sample.json";
 import { loadLocalAffiliateSnapshot } from "./load-local-snapshot";
 import type { AffiliateProductsSnapshot } from "./types";
@@ -16,6 +17,11 @@ const CACHE_TTL_SECONDS = 86_400;
 let isolateSnapshot: AffiliateProductsSnapshot | null | undefined;
 let loadingPromise: Promise<AffiliateProductsSnapshot | null> | null = null;
 
+function markUncacheable(): void {
+  // snapshot 欠損時の空結果を ISR / 静的生成に焼かない
+  noStore();
+}
+
 function allowDevFallback(): boolean {
   // ローカル JSON / サンプルは開発専用。本番（R2 欠損時）では出さない。
   return process.env.NODE_ENV !== "production";
@@ -29,23 +35,45 @@ async function loadDevFallbackSnapshot(): Promise<AffiliateProductsSnapshot | nu
   return sampleSnapshot as AffiliateProductsSnapshot;
 }
 
-async function getR2(): Promise<AffiliateR2Bucket | null> {
+async function getR2(): Promise<
+  | { ok: true; bucket: AffiliateR2Bucket }
+  | { ok: false; reason: "no_context" | "no_binding" }
+> {
   try {
     const { env } = await getCloudflareContext({ async: true });
     const bucket = (env as CloudflareEnv & { ASSETS_R2?: AffiliateR2Bucket })
       .ASSETS_R2;
-    return bucket ?? null;
+    if (!bucket) {
+      return { ok: false, reason: "no_binding" };
+    }
+    return { ok: true, bucket };
   } catch {
-    return null;
+    return { ok: false, reason: "no_context" };
   }
 }
 
 async function fetchFromR2(): Promise<AffiliateProductsSnapshot | null> {
   const r2 = await getR2();
-  if (!r2) return null;
+  if (!r2.ok) {
+    if (r2.reason === "no_binding") {
+      console.error(
+        "loadAffiliateSnapshot: ASSETS_R2 binding is missing on the Worker",
+      );
+    } else {
+      console.error(
+        "loadAffiliateSnapshot: Cloudflare context unavailable (cannot reach R2 binding)",
+      );
+    }
+    return null;
+  }
 
-  const object = await r2.get(R2_OBJECT_KEY);
-  if (!object) return null;
+  const object = await r2.bucket.get(R2_OBJECT_KEY);
+  if (!object) {
+    console.error(
+      `loadAffiliateSnapshot: R2 object not found: key="${R2_OBJECT_KEY}"`,
+    );
+    return null;
+  }
 
   const text = await object.text();
   return JSON.parse(text) as AffiliateProductsSnapshot;
@@ -86,11 +114,17 @@ async function loadAffiliateSnapshotInner(): Promise<AffiliateProductsSnapshot |
     }
 
     const fallback = await loadDevFallbackSnapshot();
+    if (!fallback) {
+      markUncacheable();
+    }
     isolateSnapshot = fallback;
     return fallback;
   } catch (err) {
     console.error("loadAffiliateSnapshot error:", err);
     const fallback = await loadDevFallbackSnapshot();
+    if (!fallback) {
+      markUncacheable();
+    }
     isolateSnapshot = fallback;
     return fallback;
   }
@@ -99,6 +133,9 @@ async function loadAffiliateSnapshotInner(): Promise<AffiliateProductsSnapshot |
 /** R2 の affiliate-products.json を読む。本番で欠損時は null（ダミー非表示） */
 export function loadAffiliateSnapshot(): Promise<AffiliateProductsSnapshot | null> {
   if (isolateSnapshot !== undefined) {
+    if (isolateSnapshot === null) {
+      markUncacheable();
+    }
     return Promise.resolve(isolateSnapshot);
   }
   if (!loadingPromise) {

@@ -13,7 +13,7 @@ import {
 } from "@/lib/seo-en";
 import { listLargeAreas } from "@/lib/shops";
 
-export const revalidate = 86_400;
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
   const areas = await listLargeAreas({ ramenOnly: true });
