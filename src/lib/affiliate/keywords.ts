@@ -2,7 +2,7 @@ import { RAMEN_STYLES, type RamenStyleId } from "@/lib/types";
 import type { AffiliateStyleKey } from "./types";
 
 /**
- * 系統ごとの検索キーワード（Yahoo / 楽天共通）。
+ * 系統ごとの検索キーワード（提供元共通）。
  * 先頭が主キーワード。足りない場合に続くバリエーションで補充する。
  */
 const STYLE_KEYWORDS: Record<RamenStyleId, readonly string[]> = {

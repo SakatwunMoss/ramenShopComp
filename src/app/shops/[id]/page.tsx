@@ -5,7 +5,7 @@ import { AffiliateProducts } from "@/components/AffiliateProducts";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { JsonLd } from "@/components/JsonLd";
 import { RelatedShops } from "@/components/RelatedShops";
-import { ShopImage } from "@/components/ShopImage";
+import { ShopHeroImage } from "@/components/ShopImage";
 import {
   buildBreadcrumbNode,
   buildJsonLdGraph,
@@ -239,18 +239,11 @@ export default async function ShopDetailPage({ params }: Props) {
         </div>
 
         <div className="space-y-6">
-          <div className="relative aspect-[4/3] overflow-hidden bg-bg-deep">
-            <ShopImage
-              src={shop.image_url}
-              alt={`${shop.name}の店舗画像`}
-              width={800}
-              height={600}
-              fill
-              sizes="(max-width: 1024px) 100vw, 40vw"
-              className="object-cover"
-              priority
-            />
-          </div>
+          <ShopHeroImage
+            src={shop.image_url}
+            alt={`${shop.name}の店舗画像`}
+            priority
+          />
 
           {shop.lat != null && shop.lng != null && (
             <iframe

@@ -1,5 +1,6 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import sampleSnapshot from "../../../data/affiliate-products.sample.json";
+import { loadLocalAffiliateSnapshot } from "./load-local-snapshot";
 import type { AffiliateProductsSnapshot } from "./types";
 
 type AffiliateR2Bucket = {
@@ -15,9 +16,17 @@ const CACHE_TTL_SECONDS = 86_400;
 let isolateSnapshot: AffiliateProductsSnapshot | null | undefined;
 let loadingPromise: Promise<AffiliateProductsSnapshot | null> | null = null;
 
-function allowSampleFallback(): boolean {
-  // サンプルは開発・ローカル確認専用。本番（R2 欠損時）では出さない。
+function allowDevFallback(): boolean {
+  // ローカル JSON / サンプルは開発専用。本番（R2 欠損時）では出さない。
   return process.env.NODE_ENV !== "production";
+}
+
+/** R2 欠損時: output JSON → sample の順（開発のみ） */
+async function loadDevFallbackSnapshot(): Promise<AffiliateProductsSnapshot | null> {
+  if (!allowDevFallback()) return null;
+  const local = await loadLocalAffiliateSnapshot();
+  if (local?.products?.length) return local;
+  return sampleSnapshot as AffiliateProductsSnapshot;
 }
 
 async function getR2(): Promise<AffiliateR2Bucket | null> {
@@ -40,10 +49,6 @@ async function fetchFromR2(): Promise<AffiliateProductsSnapshot | null> {
 
   const text = await object.text();
   return JSON.parse(text) as AffiliateProductsSnapshot;
-}
-
-function getSampleSnapshot(): AffiliateProductsSnapshot {
-  return sampleSnapshot as AffiliateProductsSnapshot;
 }
 
 async function loadAffiliateSnapshotInner(): Promise<AffiliateProductsSnapshot | null> {
@@ -80,23 +85,14 @@ async function loadAffiliateSnapshotInner(): Promise<AffiliateProductsSnapshot |
       return fromR2;
     }
 
-    if (allowSampleFallback()) {
-      const sample = getSampleSnapshot();
-      isolateSnapshot = sample;
-      return sample;
-    }
-
-    isolateSnapshot = null;
-    return null;
+    const fallback = await loadDevFallbackSnapshot();
+    isolateSnapshot = fallback;
+    return fallback;
   } catch (err) {
     console.error("loadAffiliateSnapshot error:", err);
-    if (allowSampleFallback()) {
-      const sample = getSampleSnapshot();
-      isolateSnapshot = sample;
-      return sample;
-    }
-    isolateSnapshot = null;
-    return null;
+    const fallback = await loadDevFallbackSnapshot();
+    isolateSnapshot = fallback;
+    return fallback;
   }
 }
 

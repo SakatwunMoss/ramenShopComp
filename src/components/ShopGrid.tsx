@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ShopImage } from "@/components/ShopImage";
+import { ShopCardImage } from "@/components/ShopImage";
 import { areaLargePath, shopDetailPath } from "@/lib/seo";
 import type { Shop } from "@/lib/types";
 import { AREA_LABELS } from "@/lib/shops";
@@ -56,17 +56,10 @@ export function ShopGrid({
                 </label>
               </div>
 
-              <div className="relative h-44 overflow-hidden bg-bg-deep">
-                <ShopImage
-                  src={shop.image_url}
-                  alt={`${shop.name}の店舗画像`}
-                  width={400}
-                  height={176}
-                  fill
-                  sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
-                  className="object-cover transition duration-500 group-hover:scale-[1.03]"
-                />
-              </div>
+              <ShopCardImage
+                src={shop.image_url}
+                alt={`${shop.name}の店舗画像`}
+              />
 
               <div className="flex flex-1 flex-col p-4">
                 <h3 className="font-[family-name:var(--font-display)] text-lg leading-snug tracking-wide text-ink transition group-hover:text-lacquer group-hover:underline group-hover:decoration-lacquer/60 group-hover:underline-offset-4">

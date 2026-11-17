@@ -84,7 +84,7 @@ export default function PrivacyPage() {
         <section className="space-y-3">
           <h2 className="font-medium text-ink">3. アフィリエイト広告</h2>
           <p>
-            当サイトはアフィリエイトプログラムを利用し、商品リンク経由の購入等について成果報酬を受け取る場合があります。表示価格は取得時点のものであり、実際の販売条件はリンク先でご確認ください。
+            当サイトはバリューコマースのアフィリエイトプログラム（Yahoo!ショッピング）を利用し、商品リンク経由の購入等について成果報酬を受け取る場合があります。表示価格は取得時点のものであり、実際の販売条件はリンク先でご確認ください。
           </p>
         </section>
 
@@ -153,10 +153,10 @@ export default function PrivacyPage() {
             Analytics and ad settings linked in the Japanese section above.
           </p>
           <p>
-            This site participates in affiliate programs. We may receive a
-            commission when you purchase through product links. Prices shown
-            are as of the time of data collection; please confirm current terms
-            on the destination site.
+            This site participates in the ValueCommerce affiliate program
+            (Yahoo! Shopping). We may receive a commission when you purchase
+            through product links. Prices shown are as of the time of data
+            collection; please confirm current terms on the destination site.
           </p>
           <p>
             Shop listings are powered by Hot Pepper Gourmet Web Service. Content

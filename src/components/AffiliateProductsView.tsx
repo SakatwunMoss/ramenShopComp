@@ -1,13 +1,6 @@
 import Image from "next/image";
-import type {
-  AffiliateProduct,
-  AffiliateProviderId,
-} from "@/lib/affiliate/types";
-
-const CTA_LABEL: Record<AffiliateProviderId, string> = {
-  rakuten: "楽天市場で見る",
-  yahoo: "Yahoo!ショッピングで見る",
-};
+import { AFFILIATE_CTA_LABEL } from "@/lib/affiliate/cta-labels";
+import type { AffiliateProduct } from "@/lib/affiliate/types";
 
 function formatPrice(price: number): string {
   return `¥${price.toLocaleString("ja-JP")}`;
@@ -65,7 +58,7 @@ export function AffiliateProductsView({
                 rel="sponsored nofollow noopener noreferrer"
                 className="mt-2 inline-flex bg-lacquer px-3 py-1.5 text-xs font-medium text-steam transition hover:bg-lacquer-deep"
               >
-                {CTA_LABEL[product.provider]}
+                {AFFILIATE_CTA_LABEL[product.provider]}
               </a>
             </div>
           </li>
