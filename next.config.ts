@@ -58,6 +58,31 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "placehold.co",
       },
+      // Yahoo!ショッピング商品画像（exImage / image。実ホストは **.yimg.jp 系）
+      {
+        protocol: "https",
+        hostname: "**.yimg.jp",
+      },
+      {
+        protocol: "https",
+        hostname: "item-shopping.c.yimg.jp",
+      },
+      {
+        protocol: "https",
+        hostname: "shopping.c.yimg.jp",
+      },
+      {
+        protocol: "https",
+        hostname: "shopping-fe.c.yimg.jp",
+      },
+      {
+        protocol: "https",
+        hostname: "s.yimg.jp",
+      },
+      {
+        protocol: "https",
+        hostname: "store-img.yahoo.co.jp",
+      },
     ],
   },
 };

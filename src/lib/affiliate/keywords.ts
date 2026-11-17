@@ -2,8 +2,9 @@ import { RAMEN_STYLES, type RamenStyleId } from "@/lib/types";
 import type { AffiliateStyleKey } from "./types";
 
 /**
- * 系統ごとの楽天検索キーワード。
+ * 系統ごとの検索キーワード（Yahoo / 楽天共通）。
  * 系統キー自体は RAMEN_STYLES から導出し、キーワード文字列だけここで管理する。
+ * 無関係商品の除外は product-relevance.ts 側で行う。
  */
 const STYLE_KEYWORDS: Record<RamenStyleId, string> = {
   miso: "インスタントラーメン 味噌",

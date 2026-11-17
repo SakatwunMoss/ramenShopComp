@@ -41,8 +41,9 @@ export function AffiliateProductsView({
               <Image
                 src={product.imageUrl}
                 alt=""
-                width={80}
-                height={80}
+                width={300}
+                height={300}
+                unoptimized
                 className="h-full w-full object-cover"
               />
             </a>

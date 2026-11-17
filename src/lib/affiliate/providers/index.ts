@@ -1,11 +1,11 @@
 import { rakutenAffiliateProvider } from "./rakuten";
+import { yahooAffiliateProvider } from "./yahoo";
 import type { AffiliateProvider } from "./types";
 import type { AffiliateProviderId } from "../types";
 
-const PROVIDERS: Record<AffiliateProviderId, AffiliateProvider | null> = {
+const PROVIDERS: Record<AffiliateProviderId, AffiliateProvider> = {
   rakuten: rakutenAffiliateProvider,
-  /** 将来: ValueCommerce 経由の Yahoo!ショッピング */
-  yahoo: null,
+  yahoo: yahooAffiliateProvider,
 };
 
 export function getAffiliateProvider(
@@ -16,6 +16,10 @@ export function getAffiliateProvider(
     throw new Error(`Affiliate provider "${id}" is not implemented yet`);
   }
   return provider;
+}
+
+export function isAffiliateProviderId(value: string): value is AffiliateProviderId {
+  return value === "rakuten" || value === "yahoo";
 }
 
 export type { AffiliateFetchCredentials, AffiliateProvider } from "./types";

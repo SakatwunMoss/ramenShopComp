@@ -2,15 +2,14 @@ import type { AffiliateProduct, AffiliateProviderId } from "../types";
 import type { AffiliateStyleKey } from "../types";
 
 export type AffiliateFetchCredentials = {
-  /** 楽天: applicationId / accessKey / affiliateId など。yahoo は別キーを追加予定 */
   rakuten?: {
     applicationId: string;
     accessKey: string;
     affiliateId: string;
   };
   yahoo?: {
-    // 将来: ValueCommerce 経由の認証情報
-    [key: string]: string;
+    /** Yahoo!デベロッパーネットワークの Client ID（appid） */
+    clientId: string;
   };
 };
 
@@ -25,7 +24,7 @@ export type AffiliateProvider = {
   id: AffiliateProviderId;
   /**
    * キーワード検索で候補商品を返す。
-   * リンクは必ず API が返す affiliateUrl を使い、自前組み立てしない。
+   * アフィリエイト URL の解決は各プロバイダ内（差し替えやすい関数）に閉じる。
    */
   search(
     request: AffiliateFetchRequest,

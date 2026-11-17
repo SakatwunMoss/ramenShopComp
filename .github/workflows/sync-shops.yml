@@ -86,27 +86,50 @@ jobs:
             --content-type=application/json \
             --remote
 
-      # アフィリエイト商品（失敗時はアップロードせず前回 JSON を維持）
+      # --- アフィリエイト商品（店舗更新の後。失敗してもジョブ全体は成功） ---
       - name: Fetch affiliate products
         if: github.event_name != 'workflow_dispatch' || github.event.inputs.dry_run != 'true'
         id: affiliate
         continue-on-error: true
         env:
+          AFFILIATE_PROVIDER: yahoo
+          YAHOO_CLIENT_ID: ${{ secrets.YAHOO_CLIENT_ID }}
           RAKUTEN_APPLICATION_ID: ${{ secrets.RAKUTEN_APPLICATION_ID }}
           RAKUTEN_ACCESS_KEY: ${{ secrets.RAKUTEN_ACCESS_KEY }}
           RAKUTEN_AFFILIATE_ID: ${{ secrets.RAKUTEN_AFFILIATE_ID }}
         run: |
           set -euo pipefail
+          if [ -z "${YAHOO_CLIENT_ID:-}" ]; then
+            echo "YAHOO_CLIENT_ID が未設定のため商品取得をスキップします"
+            exit 0
+          fi
           npm run fetch-affiliate-products
 
       - name: Upload affiliate-products.json to R2
-        if: >
-          (github.event_name != 'workflow_dispatch' || github.event.inputs.dry_run != 'true')
-          && steps.affiliate.outcome == 'success'
+        if: github.event_name != 'workflow_dispatch' || github.event.inputs.dry_run != 'true'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          AFFILIATE_PUBLISH: ${{ vars.AFFILIATE_PUBLISH }}
+          AFFILIATE_OUTCOME: ${{ steps.affiliate.outcome }}
         run: |
+          set -euo pipefail
+
+          if [ "${AFFILIATE_PUBLISH:-}" != "true" ]; then
+            echo "商品アップロードをスキップ(AFFILIATE_PUBLISH 未設定)"
+            exit 0
+          fi
+
+          if [ "${AFFILIATE_OUTCOME}" != "success" ]; then
+            echo "商品取得が成功していないため R2 アップロードをスキップします (outcome=${AFFILIATE_OUTCOME})"
+            exit 0
+          fi
+
+          if [ ! -f output/affiliate-products.json ]; then
+            echo "output/affiliate-products.json が無いためアップロードをスキップします"
+            exit 0
+          fi
+
           npx wrangler r2 object put ramen-compare-assets/affiliate-products.json \
             --file=output/affiliate-products.json \
             --content-type=application/json \

@@ -25,6 +25,13 @@ export const SITEMAP_SHOP_CHUNK = 5000;
  */
 export const CONTACT_EMAIL = "contact@example.com";
 
+/**
+ * バリューコマース（Yahoo!ショッピング）のサイト ID / プログラム ID。
+ * 秘密情報ではないためコード定数として保持する。
+ */
+export const VALUE_COMMERCE_SID = "3788636";
+export const VALUE_COMMERCE_PID = "892750348";
+
 export function getSiteUrl(): string {
   const fromEnv = process.env.NEXT_PUBLIC_SITE_URL?.trim();
   if (fromEnv) return fromEnv.replace(/\/$/, "");

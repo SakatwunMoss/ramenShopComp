@@ -3,23 +3,34 @@
  *
  * Usage:
  *   npm run fetch-affiliate-products
+ *   AFFILIATE_PROVIDER=yahoo npm run fetch-affiliate-products
  *
- * Required env (楽天):
+ * Required env (楽天 / AFFILIATE_PROVIDER=rakuten):
  *   RAKUTEN_APPLICATION_ID / RAKUTEN_ACCESS_KEY / RAKUTEN_AFFILIATE_ID
+ *
+ * Required env (Yahoo / AFFILIATE_PROVIDER=yahoo):
+ *   YAHOO_CLIENT_ID
+ * （VC の sid/pid は src/lib/site.ts の定数）
  *
  * Output:
  *   output/affiliate-products.json
+ * （R2 へのアップロードは行わない。CI の別ステップで制御）
  *
- * 失敗時は非ゼロ終了し、空 JSON で上書きしない（ワークフロー側で R2 アップロードをスキップ）。
+ * 失敗時は非ゼロ終了し、空 JSON で上書きしない。
  */
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { listAffiliateSearchTargets } from "../src/lib/affiliate/keywords";
-import { getAffiliateProvider } from "../src/lib/affiliate/providers";
+import {
+  getAffiliateProvider,
+  isAffiliateProviderId,
+} from "../src/lib/affiliate/providers";
+import { AFFILIATE_REVIEW_THRESHOLDS } from "../src/lib/affiliate/review-thresholds";
 import type {
   AffiliateProduct,
   AffiliateProductsSnapshot,
+  AffiliateProviderId,
 } from "../src/lib/affiliate/types";
 
 const OUTPUT_DIR = join(process.cwd(), "output");
@@ -28,21 +39,24 @@ const OUTPUT_FILE = join(OUTPUT_DIR, "affiliate-products.json");
 /** 系統あたりの目標件数 */
 const PER_STYLE_LIMIT = 2;
 
-/** リクエスト間隔（レート制限対策） */
-const REQUEST_GAP_MS = 700;
-
-/**
- * レビュー閾値。厳しい順に試し、2件に満たなければ段階的に緩める。
- */
-const REVIEW_THRESHOLDS = [
-  { minCount: 5, minAverage: 3.5 },
-  { minCount: 3, minAverage: 3.0 },
-  { minCount: 1, minAverage: 0 },
-  { minCount: 0, minAverage: 0 },
-] as const;
+/** Yahoo は 1 req/sec。楽天は少し短くて可 */
+const REQUEST_GAP_MS: Record<AffiliateProviderId, number> = {
+  rakuten: 700,
+  yahoo: 1100,
+};
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function resolveProviderId(): AffiliateProviderId {
+  const raw = (process.env.AFFILIATE_PROVIDER ?? "yahoo").trim().toLowerCase();
+  if (!isAffiliateProviderId(raw)) {
+    throw new Error(
+      `AFFILIATE_PROVIDER must be "rakuten" or "yahoo" (got "${raw}")`,
+    );
+  }
+  return raw;
 }
 
 function passesThreshold(
@@ -62,7 +76,7 @@ function pickForStyle(
 ): AffiliateProduct[] {
   const selected: AffiliateProduct[] = [];
 
-  for (const threshold of REVIEW_THRESHOLDS) {
+  for (const threshold of AFFILIATE_REVIEW_THRESHOLDS) {
     if (selected.length >= limit) break;
 
     for (const product of candidates) {
@@ -81,25 +95,52 @@ function pickForStyle(
   return selected;
 }
 
-async function main() {
-  const provider = getAffiliateProvider("rakuten");
-  const credentials = {
-    rakuten: {
-      applicationId: process.env.RAKUTEN_APPLICATION_ID?.trim() ?? "",
-      accessKey: process.env.RAKUTEN_ACCESS_KEY?.trim() ?? "",
-      affiliateId: process.env.RAKUTEN_AFFILIATE_ID?.trim() ?? "",
-    },
-  };
-
-  if (
-    !credentials.rakuten.applicationId ||
-    !credentials.rakuten.accessKey ||
-    !credentials.rakuten.affiliateId
-  ) {
-    throw new Error(
-      "RAKUTEN_APPLICATION_ID, RAKUTEN_ACCESS_KEY, and RAKUTEN_AFFILIATE_ID are required",
-    );
+function loadCredentials(providerId: AffiliateProviderId) {
+  if (providerId === "rakuten") {
+    const applicationId = process.env.RAKUTEN_APPLICATION_ID?.trim() ?? "";
+    const accessKey = process.env.RAKUTEN_ACCESS_KEY?.trim() ?? "";
+    const affiliateId = process.env.RAKUTEN_AFFILIATE_ID?.trim() ?? "";
+    if (!applicationId || !accessKey || !affiliateId) {
+      throw new Error(
+        "RAKUTEN_APPLICATION_ID, RAKUTEN_ACCESS_KEY, and RAKUTEN_AFFILIATE_ID are required",
+      );
+    }
+    return {
+      rakuten: { applicationId, accessKey, affiliateId },
+    };
   }
+
+  const clientId = process.env.YAHOO_CLIENT_ID?.trim() ?? "";
+  if (!clientId) {
+    throw new Error("YAHOO_CLIENT_ID is required");
+  }
+  return {
+    yahoo: { clientId },
+  };
+}
+
+function formatPrice(price: number): string {
+  return `¥${price.toLocaleString("ja-JP")}`;
+}
+
+function logStylePicks(styleKey: string, picked: AffiliateProduct[]) {
+  console.log(`[affiliate] style=${styleKey} picked=${picked.length}`);
+  for (const product of picked) {
+    console.log(`  - ${product.name}`);
+    console.log(`    price=${formatPrice(product.price)}`);
+    console.log(`    image=${product.imageUrl}`);
+    console.log(`    vc=${product.affiliateUrl}`);
+  }
+}
+
+async function main() {
+  const providerId = resolveProviderId();
+  const provider = getAffiliateProvider(providerId);
+  const credentials = loadCredentials(providerId);
+  const gapMs = REQUEST_GAP_MS[providerId];
+
+  console.log(`[affiliate] provider=${providerId}`);
+  console.log(`[affiliate] output=${OUTPUT_FILE} (no R2 upload)`);
 
   const targets = listAffiliateSearchTargets();
   const usedIds = new Set<string>();
@@ -107,7 +148,7 @@ async function main() {
 
   for (let i = 0; i < targets.length; i++) {
     const target = targets[i]!;
-    if (i > 0) await sleep(REQUEST_GAP_MS);
+    if (i > 0) await sleep(gapMs);
 
     console.log(
       `[affiliate] fetching style=${target.styleKey} keyword="${target.keyword}"`,
@@ -129,8 +170,9 @@ async function main() {
     }
 
     console.log(
-      `[affiliate] style=${target.styleKey} candidates=${candidates.length} picked=${picked.length}`,
+      `[affiliate] style=${target.styleKey} candidates=${candidates.length}`,
     );
+    logStylePicks(target.styleKey, picked);
   }
 
   if (products.length === 0) {
@@ -138,6 +180,31 @@ async function main() {
       "No affiliate products selected. Keeping previous snapshot (do not upload empty file).",
     );
   }
+
+  // 組み立てた VC リンクの目視確認用（先頭3件）
+  const preview = products.slice(0, 3);
+  console.log(`[affiliate] VC link preview (first ${preview.length}):`);
+  for (const product of preview) {
+    console.log(
+      `  - [${product.styleKey}] ${product.name} / ${formatPrice(product.price)}`,
+    );
+    console.log(`    ${product.affiliateUrl}`);
+  }
+
+  const imageHosts = [
+    ...new Set(
+      products
+        .map((p) => {
+          try {
+            return new URL(p.imageUrl).hostname;
+          } catch {
+            return null;
+          }
+        })
+        .filter((h): h is string => Boolean(h)),
+    ),
+  ];
+  console.log(`[affiliate] image hosts seen: ${imageHosts.join(", ") || "(none)"}`);
 
   const snapshot: AffiliateProductsSnapshot = {
     generated_at: new Date().toISOString(),
@@ -147,7 +214,7 @@ async function main() {
   mkdirSync(OUTPUT_DIR, { recursive: true });
   writeFileSync(OUTPUT_FILE, `${JSON.stringify(snapshot, null, 2)}\n`, "utf8");
   console.log(
-    `[affiliate] wrote ${products.length} products → ${OUTPUT_FILE}`,
+    `[affiliate] wrote ${products.length} products (provider=${providerId}) → ${OUTPUT_FILE}`,
   );
 }
 
