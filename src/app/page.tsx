@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { AdSenseSlot } from "@/components/AdSenseSlot";
 import { DiagnoseNavLink } from "@/components/diagnose/DiagnoseNavLink";
+import { FewResultsNotice } from "@/components/FewResultsNotice";
 import { JsonLd } from "@/components/JsonLd";
 import { Pagination } from "@/components/Pagination";
 import { ShopCompareGrid } from "@/components/ShopCompareGrid";
@@ -17,6 +18,7 @@ import {
   SITE_DESCRIPTION,
   SITE_TITLE_DEFAULT,
   SHOPS_PAGE_SIZE,
+  STYLE_FEW_RESULTS_THRESHOLD,
 } from "@/lib/site";
 import { getAreaLabel, isShopsDataAvailable, listLargeAreas, listShopsPaginated } from "@/lib/shops";
 
@@ -65,6 +67,9 @@ export default async function HomePage({
   ]);
 
   const { shops, total, totalPages } = paginated;
+  const hasStyle = Boolean(params.style?.trim());
+  const showFewResultsNotice =
+    hasShopsData && hasStyle && total <= STYLE_FEW_RESULTS_THRESHOLD;
 
   const jsonLd = buildJsonLdGraph([
     buildBreadcrumbNode([{ name: "トップ", path: "/" }]),
@@ -197,7 +202,8 @@ export default async function HomePage({
             currentScope={ramenOnly ? "ramen" : "all"}
           />
 
-          {areas.length > 0 && (
+          {/* 少数ヒット注意書きがあるときは誘導が重複するため、常時案内は出さない */}
+          {areas.length > 0 && !showFewResultsNotice && (
             <p className="mt-4 text-sm text-ink-muted">
               エリア別の一覧は{" "}
               <Link href="/areas" className="text-lacquer underline-offset-2 hover:underline">
@@ -234,6 +240,15 @@ export default async function HomePage({
             <p className="mt-8 text-sm text-ink-muted">
               条件に一致する店舗がありません。「対象」を「キーワード該当すべて」にするか、別エリアを取り込んでください。
             </p>
+          )}
+
+          {hasShopsData && (
+            <FewResultsNotice
+              total={total}
+              hasStyle={hasStyle}
+              areaCode={params.area}
+              areaLabel={selectedAreaLabel ?? undefined}
+            />
           )}
 
           {shops.length > 0 && <ShopCompareGrid shops={shops} />}
