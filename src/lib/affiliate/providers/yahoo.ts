@@ -177,7 +177,8 @@ export const yahooAffiliateProvider: AffiliateProvider = {
       if (hit.inStock === false) continue;
       if (hit.condition && hit.condition !== "new") continue;
       if (/中古|アダルト|adult/i.test(name)) continue;
-      if (!isRelevantInstantRamenProduct(name, request.styleKey)) continue;
+      // 系統は検索キーワードではなく、取得後に商品名で再判定する
+      if (!isRelevantInstantRamenProduct(name)) continue;
 
       const affiliateUrl = resolveYahooAffiliateUrl(itemUrl);
       if (!affiliateUrl) continue;

@@ -20,7 +20,8 @@
     "verify-area-hierarchy": "tsx scripts/verify-area-hierarchy.ts",
     "analyze-tag-coverage": "tsx --env-file=.env.local scripts/analyze-tag-coverage.ts",
     "fetch-ramen-style-images": "tsx scripts/fetch-ramen-style-images.ts",
-    "fetch-affiliate-products": "tsx --env-file=.env.local scripts/fetch-affiliate-products.ts"
+    "fetch-affiliate-products": "tsx --env-file=.env.local scripts/fetch-affiliate-products.ts",
+    "test:affiliate-style": "tsx --test src/lib/affiliate/product-relevance.test.ts"
   },
   "dependencies": {
     "@fontsource/shippori-mincho": "^5.3.0",

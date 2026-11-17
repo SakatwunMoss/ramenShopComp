@@ -1,9 +1,9 @@
 /**
- * インスタントラーメン以外（スープ単体・食器・カップ麺など）を除外する。
- * Yahoo API に NGKeyword が無いため、取得後に商品名でフィルタする。
+ * インスタントラーメン商品の関連性フィルタと、商品名からの系統再判定。
+ * 検索キーワードの styleKey は信用せず、取得後にこの判定で振り分ける。
  */
 
-import { RAMEN_STYLES, type RamenStyleId } from "@/lib/types";
+import type { RamenStyleId } from "@/lib/types";
 import type { AffiliateStyleKey } from "./types";
 
 /** これらを含む商品は除外 */
@@ -50,26 +50,77 @@ const INCLUDE_NAME_PATTERNS: RegExp[] = [
   /つけめん/,
 ];
 
-function styleKeywords(styleId: RamenStyleId): readonly string[] {
-  return RAMEN_STYLES.find((s) => s.id === styleId)?.keywords ?? [];
-}
+/**
+ * 系統再判定の優先順位（強い系統語ほど先）。
+ * 上位にヒットしたら下位には割り当てない。
+ */
+const STYLE_INFER_RULES: {
+  id: RamenStyleId;
+  patterns: RegExp[];
+}[] = [
+  {
+    id: "jiro",
+    patterns: [/二郎/, /ジロリアン/, /jiro/i],
+  },
+  {
+    id: "iekei",
+    patterns: [/家系/, /いえけい/],
+  },
+  {
+    id: "tsukemen",
+    patterns: [/つけ麺/, /つけめん/, /つけ麵/, /付麺/],
+  },
+  {
+    id: "tonkotsu",
+    patterns: [/豚骨/, /とんこつ/, /トンコツ/],
+  },
+  {
+    id: "miso",
+    patterns: [/味噌/, /みそ/],
+  },
+  {
+    id: "shio",
+    patterns: [/塩らーめん/, /塩ラーメン/, /しおラーメン/, /塩味/, /塩そば/],
+  },
+  {
+    id: "shoyu",
+    patterns: [/醤油/, /しょうゆ/, /正油/],
+  },
+];
 
-export function isRelevantInstantRamenProduct(
-  name: string,
-  styleKey?: AffiliateStyleKey,
-): boolean {
+/** 「塩」単体は誤爆しやすいので、塩判定は上の強いパターンに限定しつつ補助語も見る */
+const SHIO_EXTRA = [/[^ぁ-んァ-ヶ一-龥]塩[^ぁ-んァ-ヶ一-龥]/, /^塩/, /塩ら/, /しお味/, /しお$/];
+
+export function isRelevantInstantRamenProduct(name: string): boolean {
   const n = name.trim();
   if (!n) return false;
   if (EXCLUDE_NAME_PATTERNS.some((re) => re.test(n))) return false;
   if (!INCLUDE_NAME_PATTERNS.some((re) => re.test(n))) return false;
+  return true;
+}
 
-  // 系統指定時は、検索ノイズ対策として商品名に系統語が含まれることを要求
-  if (styleKey && styleKey !== "general") {
-    const keywords = styleKeywords(styleKey);
-    if (keywords.length && !keywords.some((kw) => n.includes(kw))) {
-      return false;
+/**
+ * 商品名から系統を再判定する。
+ * 優先: jiro > iekei > tsukemen > tonkotsu > miso > shio > shoyu
+ * 「醤油豚骨」で二郎・家系語がなければ tonkotsu。
+ * どれにも当てはまらなければ general。
+ */
+export function inferAffiliateStyleFromName(name: string): AffiliateStyleKey {
+  const n = name.trim();
+  if (!n) return "general";
+
+  for (const rule of STYLE_INFER_RULES) {
+    if (rule.id === "shio") {
+      const hit =
+        rule.patterns.some((re) => re.test(n)) ||
+        SHIO_EXTRA.some((re) => re.test(n));
+      if (hit) return "shio";
+      continue;
+    }
+    if (rule.patterns.some((re) => re.test(n))) {
+      return rule.id;
     }
   }
 
-  return true;
+  return "general";
 }

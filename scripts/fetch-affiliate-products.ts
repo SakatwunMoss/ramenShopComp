@@ -5,18 +5,11 @@
  *   npm run fetch-affiliate-products
  *   AFFILIATE_PROVIDER=yahoo npm run fetch-affiliate-products
  *
- * Required env (楽天 / AFFILIATE_PROVIDER=rakuten):
- *   RAKUTEN_APPLICATION_ID / RAKUTEN_ACCESS_KEY / RAKUTEN_AFFILIATE_ID
- *
  * Required env (Yahoo / AFFILIATE_PROVIDER=yahoo):
  *   YAHOO_CLIENT_ID
- * （VC の sid/pid は src/lib/site.ts の定数）
  *
  * Output:
- *   output/affiliate-products.json
- * （R2 へのアップロードは行わない。CI の別ステップで制御）
- *
- * 失敗時は非ゼロ終了し、空 JSON で上書きしない。
+ *   output/affiliate-products.json（R2 アップロードはしない）
  */
 
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -26,20 +19,20 @@ import {
   getAffiliateProvider,
   isAffiliateProviderId,
 } from "../src/lib/affiliate/providers";
+import { inferAffiliateStyleFromName } from "../src/lib/affiliate/product-relevance";
 import { AFFILIATE_REVIEW_THRESHOLDS } from "../src/lib/affiliate/review-thresholds";
 import type {
   AffiliateProduct,
   AffiliateProductsSnapshot,
   AffiliateProviderId,
+  AffiliateStyleKey,
 } from "../src/lib/affiliate/types";
 
 const OUTPUT_DIR = join(process.cwd(), "output");
 const OUTPUT_FILE = join(OUTPUT_DIR, "affiliate-products.json");
 
-/** 系統あたりの目標件数 */
 const PER_STYLE_LIMIT = 2;
 
-/** Yahoo は 1 req/sec。楽天は少し短くて可 */
 const REQUEST_GAP_MS: Record<AffiliateProviderId, number> = {
   rakuten: 700,
   yahoo: 1100,
@@ -67,6 +60,15 @@ function passesThreshold(
   return (
     product.reviewCount >= minCount && product.reviewAverage >= minAverage
   );
+}
+
+/** 厳しめ閾値で何件取れるか（キーワード補充の判断用） */
+function countPassingStrict(candidates: AffiliateProduct[]): number {
+  const [strict] = AFFILIATE_REVIEW_THRESHOLDS;
+  if (!strict) return candidates.length;
+  return candidates.filter((p) =>
+    passesThreshold(p, strict.minCount, strict.minAverage),
+  ).length;
 }
 
 function pickForStyle(
@@ -105,32 +107,36 @@ function loadCredentials(providerId: AffiliateProviderId) {
         "RAKUTEN_APPLICATION_ID, RAKUTEN_ACCESS_KEY, and RAKUTEN_AFFILIATE_ID are required",
       );
     }
-    return {
-      rakuten: { applicationId, accessKey, affiliateId },
-    };
+    return { rakuten: { applicationId, accessKey, affiliateId } };
   }
 
   const clientId = process.env.YAHOO_CLIENT_ID?.trim() ?? "";
   if (!clientId) {
     throw new Error("YAHOO_CLIENT_ID is required");
   }
-  return {
-    yahoo: { clientId },
-  };
+  return { yahoo: { clientId } };
 }
 
 function formatPrice(price: number): string {
   return `¥${price.toLocaleString("ja-JP")}`;
 }
 
-function logStylePicks(styleKey: string, picked: AffiliateProduct[]) {
-  console.log(`[affiliate] style=${styleKey} picked=${picked.length}`);
-  for (const product of picked) {
-    console.log(`  - ${product.name}`);
-    console.log(`    price=${formatPrice(product.price)}`);
-    console.log(`    image=${product.imageUrl}`);
-    console.log(`    vc=${product.affiliateUrl}`);
+function reclassifyForTarget(
+  products: AffiliateProduct[],
+  targetStyle: AffiliateStyleKey,
+): AffiliateProduct[] {
+  const out: AffiliateProduct[] = [];
+  const seen = new Set<string>();
+
+  for (const product of products) {
+    const inferred = inferAffiliateStyleFromName(product.name);
+    if (inferred !== targetStyle) continue;
+    if (seen.has(product.id)) continue;
+    seen.add(product.id);
+    out.push({ ...product, styleKey: inferred });
   }
+
+  return out;
 }
 
 async function main() {
@@ -145,24 +151,48 @@ async function main() {
   const targets = listAffiliateSearchTargets();
   const usedIds = new Set<string>();
   const products: AffiliateProduct[] = [];
+  let requestCount = 0;
 
-  for (let i = 0; i < targets.length; i++) {
-    const target = targets[i]!;
-    if (i > 0) await sleep(gapMs);
+  for (const target of targets) {
+    const byId = new Map<string, AffiliateProduct>();
 
-    console.log(
-      `[affiliate] fetching style=${target.styleKey} keyword="${target.keyword}"`,
-    );
+    for (let ki = 0; ki < target.keywords.length; ki++) {
+      const keyword = target.keywords[ki]!;
+      if (requestCount > 0) await sleep(gapMs);
+      requestCount += 1;
 
-    const candidates = await provider.search(
-      {
-        styleKey: target.styleKey,
-        keyword: target.keyword,
-        hits: 30,
-      },
-      credentials,
-    );
+      console.log(
+        `[affiliate] fetching style=${target.styleKey} keyword[${ki}]="${keyword}"`,
+      );
 
+      const raw = await provider.search(
+        {
+          styleKey: target.styleKey,
+          keyword,
+          hits: 30,
+        },
+        credentials,
+      );
+
+      const matched = reclassifyForTarget(raw, target.styleKey);
+      for (const product of matched) {
+        if (!byId.has(product.id)) {
+          byId.set(product.id, product);
+        }
+      }
+
+      const candidates = [...byId.values()];
+      console.log(
+        `[affiliate] style=${target.styleKey} keyword[${ki}] raw=${raw.length} matched=${matched.length} pool=${candidates.length}`,
+      );
+
+      // 厳しめ閾値で目標件数に届いていれば、閾値緩和の前にキーワード補充を打ち切る
+      if (countPassingStrict(candidates) >= PER_STYLE_LIMIT) {
+        break;
+      }
+    }
+
+    const candidates = [...byId.values()];
     const picked = pickForStyle(candidates, usedIds, PER_STYLE_LIMIT);
     for (const product of picked) {
       usedIds.add(product.id);
@@ -170,9 +200,8 @@ async function main() {
     }
 
     console.log(
-      `[affiliate] style=${target.styleKey} candidates=${candidates.length}`,
+      `[affiliate] style=${target.styleKey} selected=${picked.length}/${PER_STYLE_LIMIT}`,
     );
-    logStylePicks(target.styleKey, picked);
   }
 
   if (products.length === 0) {
@@ -181,7 +210,14 @@ async function main() {
     );
   }
 
-  // 組み立てた VC リンクの目視確認用（先頭3件）
+  // 全系統の商品名一覧（取り違えの目視確認用）
+  console.log("[affiliate] === all selected products ===");
+  for (const product of products) {
+    console.log(
+      `  [${product.styleKey}] ${product.name} / ${formatPrice(product.price)}`,
+    );
+  }
+
   const preview = products.slice(0, 3);
   console.log(`[affiliate] VC link preview (first ${preview.length}):`);
   for (const product of preview) {
@@ -190,21 +226,6 @@ async function main() {
     );
     console.log(`    ${product.affiliateUrl}`);
   }
-
-  const imageHosts = [
-    ...new Set(
-      products
-        .map((p) => {
-          try {
-            return new URL(p.imageUrl).hostname;
-          } catch {
-            return null;
-          }
-        })
-        .filter((h): h is string => Boolean(h)),
-    ),
-  ];
-  console.log(`[affiliate] image hosts seen: ${imageHosts.join(", ") || "(none)"}`);
 
   const snapshot: AffiliateProductsSnapshot = {
     generated_at: new Date().toISOString(),

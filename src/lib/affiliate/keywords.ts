@@ -3,31 +3,66 @@ import type { AffiliateStyleKey } from "./types";
 
 /**
  * 系統ごとの検索キーワード（Yahoo / 楽天共通）。
- * 系統キー自体は RAMEN_STYLES から導出し、キーワード文字列だけここで管理する。
- * 無関係商品の除外は product-relevance.ts 側で行う。
+ * 先頭が主キーワード。足りない場合に続くバリエーションで補充する。
  */
-const STYLE_KEYWORDS: Record<RamenStyleId, string> = {
-  miso: "インスタントラーメン 味噌",
-  shoyu: "インスタントラーメン 醤油",
-  shio: "インスタントラーメン 塩",
-  tonkotsu: "インスタントラーメン 豚骨",
-  tsukemen: "インスタントラーメン つけ麺",
-  iekei: "家系 インスタント ラーメン",
-  jiro: "二郎系 インスタント",
+const STYLE_KEYWORDS: Record<RamenStyleId, readonly string[]> = {
+  miso: [
+    "インスタントラーメン 味噌",
+    "味噌ラーメン 袋麺",
+    "みそラーメン インスタント",
+  ],
+  shoyu: [
+    "インスタントラーメン 醤油",
+    "醤油ラーメン 袋麺",
+    "しょうゆラーメン インスタント",
+  ],
+  shio: [
+    "インスタントラーメン 塩",
+    "塩ラーメン 袋麺",
+    "塩らーめん インスタント",
+  ],
+  tonkotsu: [
+    "インスタントラーメン 豚骨",
+    "豚骨ラーメン 袋麺",
+    "とんこつラーメン インスタント",
+  ],
+  tsukemen: [
+    "インスタントラーメン つけ麺",
+    "つけ麺 袋麺",
+    "つけ麺 インスタント",
+  ],
+  iekei: [
+    "家系 インスタント ラーメン",
+    "家系ラーメン 袋麺",
+    "横浜家系 インスタント",
+  ],
+  jiro: [
+    "二郎系 インスタント",
+    "二郎系 ラーメン 袋麺",
+    "二郎インスパイア インスタント",
+  ],
 };
 
-const GENERAL_KEYWORD = "インスタントラーメン";
+const GENERAL_KEYWORDS = [
+  "インスタントラーメン",
+  "袋麺 ラーメン",
+  "即席めん ラーメン",
+] as const;
 
 export type AffiliateSearchTarget = {
   styleKey: AffiliateStyleKey;
-  keyword: string;
+  /** 主キーワード＋補充用バリエーション（先頭から試す） */
+  keywords: readonly string[];
 };
 
-/** RAMEN_STYLES 順 + general。ハードコードした系統リストは持たない */
+/** RAMEN_STYLES 順 + general */
 export function listAffiliateSearchTargets(): AffiliateSearchTarget[] {
   const styles: AffiliateSearchTarget[] = RAMEN_STYLES.map((style) => ({
     styleKey: style.id,
-    keyword: STYLE_KEYWORDS[style.id],
+    keywords: STYLE_KEYWORDS[style.id],
   }));
-  return [...styles, { styleKey: "general", keyword: GENERAL_KEYWORD }];
+  return [
+    ...styles,
+    { styleKey: "general", keywords: GENERAL_KEYWORDS },
+  ];
 }
