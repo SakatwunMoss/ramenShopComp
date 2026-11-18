@@ -32,6 +32,7 @@ const EXCLUDE_NAME_PATTERNS: RegExp[] = [
   /チャーシュー(?!.*(麺|ラーメン|らーめん|セット))/,
   /乾燥野菜|フリーズドライ|ドライベジタブル/,
   /みそ汁|味噌汁/,
+  /小麦粉|薄力粉|中力粉|強力粉|製粉/,
 ];
 
 /** インスタント麺らしさの最低条件（いずれか） */
@@ -123,4 +124,121 @@ export function inferAffiliateStyleFromName(name: string): AffiliateStyleKey {
   }
 
   return "general";
+}
+
+/** スープ味の系統（詰め合わせ判定用）。優先順位ロジック自体は変えない */
+const SOUP_FLAVOR_STYLE_IDS = [
+  "tonkotsu",
+  "miso",
+  "shio",
+  "shoyu",
+] as const satisfies readonly RamenStyleId[];
+
+type SoupFlavorStyleId = (typeof SOUP_FLAVOR_STYLE_IDS)[number];
+
+/** 単一の味呼称として扱う「醤油豚骨」「豚骨醤油」系 */
+const SHOYU_TONKOTSU_COMPOUND =
+  /(?:醤油|しょうゆ|正油)\s*(?:豚骨|とんこつ|トンコツ)|(?:豚骨|とんこつ|トンコツ)\s*(?:醤油|しょうゆ|正油)/;
+
+const SOUP_FLAVOR_DETECT: {
+  id: SoupFlavorStyleId;
+  test: (name: string) => boolean;
+}[] = [
+  {
+    id: "tonkotsu",
+    test: (n) => /豚骨|とんこつ|トンコツ/.test(n),
+  },
+  {
+    id: "miso",
+    test: (n) => /味噌|みそ/.test(n),
+  },
+  {
+    id: "shio",
+    test: (n) =>
+      [/塩らーめん/, /塩ラーメン/, /しおラーメン/, /塩味/, /塩そば/].some((re) =>
+        re.test(n),
+      ) || SHIO_EXTRA.some((re) => re.test(n)),
+  },
+  {
+    id: "shoyu",
+    test: (n) => /醤油|しょうゆ|正油/.test(n),
+  },
+];
+
+/**
+ * 複数味の詰め合わせセットか。
+ * スープ系統語が複合語を除いて2種以上ある場合に true。
+ * 「醤油豚骨」のような単一味呼称、および二郎/家系/つけ麺＋単一スープは false。
+ * （inferAffiliateStyleFromName の優先順位ロジックは変更しない）
+ */
+export function isMultiFlavorAssortment(name: string): boolean {
+  const n = name.trim();
+  if (!n) return false;
+
+  // 醤油豚骨 / 豚骨醤油 は単一味として tonkotsu のみカウント
+  const collapsed = n.replace(SHOYU_TONKOTSU_COMPOUND, "豚骨");
+
+  const flavors = new Set<SoupFlavorStyleId>();
+  for (const rule of SOUP_FLAVOR_DETECT) {
+    if (rule.test(collapsed)) flavors.add(rule.id);
+  }
+  return flavors.size >= 2;
+}
+
+/** 個数・入り数表記を除いた比較用の商品名 */
+const QUANTITY_NOISE_PATTERNS: RegExp[] = [
+  /\d+\s*食(?:分|入り|入|セット)?/g,
+  /\d+\s*人前/g,
+  /\d+\s*袋(?:入り|入|セット)?/g,
+  /\d+\s*個(?:入り|入|セット)?/g,
+  /\d+\s*パック(?:入り|入)?/g,
+  /\d+\s*箱(?:入り|入)?/g,
+  /\d+\s*セット/g,
+  /(?:1袋|一袋)\s*[×xX＊*]\s*\d+/g,
+  /\d+\s*[×xX＊*]\s*\d+(?:\s*(?:袋|個|食|パック))?/g,
+  /[【\[]\s*[SsMmLl]\s*[】\]]/g,
+];
+
+export function stripQuantityNoiseFromName(name: string): string {
+  let n = name.trim();
+  for (const re of QUANTITY_NOISE_PATTERNS) {
+    n = n.replace(re, " ");
+  }
+  return n.replace(/\s+/g, " ").trim();
+}
+
+const VARIANT_PREFIX_LEN = 18;
+
+/**
+ * 個数違いの同一商品か。
+ * 個数表記除去後の名前が一致、または同一ストアで先頭部分が一致すれば同一とみなす。
+ */
+export function isSameProductQuantityVariant(
+  a: { name: string; shopName: string },
+  b: { name: string; shopName: string },
+): boolean {
+  const na = stripQuantityNoiseFromName(a.name);
+  const nb = stripQuantityNoiseFromName(b.name);
+  if (!na || !nb) return false;
+  if (na === nb) return true;
+
+  const sameShop =
+    a.shopName.trim().length > 0 &&
+    a.shopName.trim() === b.shopName.trim();
+  if (!sameShop) return false;
+
+  const prefixLen = Math.min(VARIANT_PREFIX_LEN, na.length, nb.length);
+  if (prefixLen < 8) return false;
+  return na.slice(0, prefixLen) === nb.slice(0, prefixLen);
+}
+
+/** 選定時の個数違い重複排除用キー（ストア + 正規化名の先頭） */
+export function productQuantityVariantKey(product: {
+  name: string;
+  shopName: string;
+}): string {
+  const shop = product.shopName.trim() || "_";
+  const core = stripQuantityNoiseFromName(product.name);
+  const prefix = core.slice(0, VARIANT_PREFIX_LEN);
+  return `${shop}::${prefix}`;
 }

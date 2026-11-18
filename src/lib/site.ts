@@ -30,7 +30,7 @@ export const CONTACT_EMAIL = "contact@example.com";
  * 秘密情報ではないためコード定数として保持する。
  */
 export const VALUE_COMMERCE_SID = "3788636";
-export const VALUE_COMMERCE_PID = "892750348";
+export const VALUE_COMMERCE_PID = "892751452";
 
 export function getSiteUrl(): string {
   const fromEnv = process.env.NEXT_PUBLIC_SITE_URL?.trim();

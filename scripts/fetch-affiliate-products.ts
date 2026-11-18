@@ -19,7 +19,11 @@ import {
   getAffiliateProvider,
   isAffiliateProviderId,
 } from "../src/lib/affiliate/providers";
-import { inferAffiliateStyleFromName } from "../src/lib/affiliate/product-relevance";
+import {
+  inferAffiliateStyleFromName,
+  isMultiFlavorAssortment,
+  productQuantityVariantKey,
+} from "../src/lib/affiliate/product-relevance";
 import { AFFILIATE_REVIEW_THRESHOLDS } from "../src/lib/affiliate/review-thresholds";
 import type {
   AffiliateProduct,
@@ -74,9 +78,11 @@ function countPassingStrict(candidates: AffiliateProduct[]): number {
 function pickForStyle(
   candidates: AffiliateProduct[],
   usedIds: Set<string>,
+  usedVariantKeys: Set<string>,
   limit: number,
 ): AffiliateProduct[] {
   const selected: AffiliateProduct[] = [];
+  const selectedVariantKeys = new Set<string>();
 
   for (const threshold of AFFILIATE_REVIEW_THRESHOLDS) {
     if (selected.length >= limit) break;
@@ -85,12 +91,18 @@ function pickForStyle(
       if (selected.length >= limit) break;
       if (usedIds.has(product.id)) continue;
       if (selected.some((p) => p.id === product.id)) continue;
+
+      const variantKey = productQuantityVariantKey(product);
+      if (usedVariantKeys.has(variantKey)) continue;
+      if (selectedVariantKeys.has(variantKey)) continue;
+
       if (
         !passesThreshold(product, threshold.minCount, threshold.minAverage)
       ) {
         continue;
       }
       selected.push(product);
+      selectedVariantKeys.add(variantKey);
     }
   }
 
@@ -129,11 +141,23 @@ function reclassifyForTarget(
   const seen = new Set<string>();
 
   for (const product of products) {
+    const assortment = isMultiFlavorAssortment(product.name);
+    // 詰め合わせは系統枠から除外。general 枠のみ許可
+    if (assortment && targetStyle !== "general") continue;
+
     const inferred = inferAffiliateStyleFromName(product.name);
-    if (inferred !== targetStyle) continue;
+    if (targetStyle === "general") {
+      if (!assortment && inferred !== "general") continue;
+    } else if (inferred !== targetStyle) {
+      continue;
+    }
+
     if (seen.has(product.id)) continue;
     seen.add(product.id);
-    out.push({ ...product, styleKey: inferred });
+    out.push({
+      ...product,
+      styleKey: targetStyle === "general" && assortment ? "general" : inferred,
+    });
   }
 
   return out;
@@ -150,6 +174,7 @@ async function main() {
 
   const targets = listAffiliateSearchTargets();
   const usedIds = new Set<string>();
+  const usedVariantKeys = new Set<string>();
   const products: AffiliateProduct[] = [];
   let requestCount = 0;
 
@@ -193,9 +218,15 @@ async function main() {
     }
 
     const candidates = [...byId.values()];
-    const picked = pickForStyle(candidates, usedIds, PER_STYLE_LIMIT);
+    const picked = pickForStyle(
+      candidates,
+      usedIds,
+      usedVariantKeys,
+      PER_STYLE_LIMIT,
+    );
     for (const product of picked) {
       usedIds.add(product.id);
+      usedVariantKeys.add(productQuantityVariantKey(product));
       products.push(product);
     }
 
