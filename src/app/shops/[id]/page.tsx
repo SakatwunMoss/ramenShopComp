@@ -256,7 +256,9 @@ export default async function ShopDetailPage({ params }: Props) {
           )}
 
           <AffiliateProducts
-            styleKeys={[style?.id ?? "general"]}
+            // 系統が推定できない店舗は混在扱い（全商品からランダム）。
+            // "general" に落とすと general 枠の固定2件だけになるため使わない。
+            styleKeys={style ? [style.id] : []}
             limit={2}
             className="mt-6"
           />

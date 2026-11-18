@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
 import {
   isDeterminedAffiliateStyle,
   selectAffiliateProducts,
@@ -11,6 +14,11 @@ import type {
   AffiliateProductsSnapshot,
   AffiliateStyleKey,
 } from "./types";
+
+const REAL_SNAPSHOT_PATH = join(
+  dirname(fileURLToPath(import.meta.url)),
+  "../../../output/affiliate-products.json",
+);
 
 function product(
   id: string,
@@ -139,5 +147,81 @@ describe("selectAffiliateProductsRandom / 混在", () => {
     assert.equal(b.length, 2);
     assert.equal(new Set(a.map((p) => p.id)).size, 2);
     assert.equal(new Set(b.map((p) => p.id)).size, 2);
+  });
+});
+
+describe("実JSONでのランダム分布 (output/affiliate-products.json)", () => {
+  const raw = JSON.parse(
+    readFileSync(REAL_SNAPSHOT_PATH, "utf8"),
+  ) as AffiliateProductsSnapshot;
+
+  it("スナップショットは全系統を含み general のみではない", () => {
+    assert.ok(raw.products.length >= 8, `expected many products, got ${raw.products.length}`);
+    const styles = new Set(raw.products.map((p) => p.styleKey));
+    assert.ok(styles.size >= 3, `expected multiple styles, got ${[...styles]}`);
+    assert.ok(
+      [...styles].some((s) => s !== "general"),
+      "snapshot must include non-general products",
+    );
+  });
+
+  it("styleKeys=[general] だと general の2件に固定される（店舗フォールバックの罠）", () => {
+    const selected = selectAffiliateProducts(raw, ["general"], 2);
+    assert.ok(selected.length > 0);
+    assert.ok(selected.every((p) => p.styleKey === "general"));
+  });
+
+  it("混在(styleKeys=[]) の1000回選定は各商品がおおむね均等", () => {
+    const counts = new Map<string, number>();
+    for (const p of raw.products) counts.set(p.id, 0);
+
+    const trials = 1000;
+    for (let i = 0; i < trials; i++) {
+      const selected = selectAffiliateProducts(raw, [], 2);
+      assert.equal(selected.length, 2);
+      assert.equal(new Set(selected.map((p) => p.id)).size, 2);
+      // 可能なら別系統
+      if (
+        raw.products.some((p) => p.styleKey !== selected[0]!.styleKey)
+      ) {
+        assert.notEqual(selected[0]!.styleKey, selected[1]!.styleKey);
+      }
+      for (const p of selected) {
+        counts.set(p.id, (counts.get(p.id) ?? 0) + 1);
+      }
+    }
+
+    const values = [...counts.values()];
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const expected = (trials * 2) / raw.products.length;
+
+    // 全商品が少なくとも一度は選ばれる
+    assert.ok(min > 0, `some product never selected: ${min}`);
+    // 極端な偏りがない（max/min < 2.5、かつ期待値の 0.45〜1.8 倍）
+    assert.ok(
+      max / min < 2.5,
+      `skew too high: max=${max} min=${min} ratio=${(max / min).toFixed(2)}`,
+    );
+    for (const [id, count] of counts) {
+      assert.ok(
+        count >= expected * 0.45 && count <= expected * 1.8,
+        `${id} count=${count} expected≈${expected.toFixed(1)}`,
+      );
+    }
+
+    // general 2商品だけで試行の大半を占めていないこと
+    const generalIds = new Set(
+      raw.products.filter((p) => p.styleKey === "general").map((p) => p.id),
+    );
+    let bothGeneral = 0;
+    for (let i = 0; i < 200; i++) {
+      const selected = selectAffiliateProducts(raw, [], 2);
+      if (selected.every((p) => generalIds.has(p.id))) bothGeneral += 1;
+    }
+    assert.ok(
+      bothGeneral < 20,
+      `both-general too often: ${bothGeneral}/200 (general-only fallback bug?)`,
+    );
   });
 });
