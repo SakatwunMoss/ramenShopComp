@@ -51,7 +51,8 @@ function parsePreferences(input: unknown): DiagnosePreferences | null {
     typeof raw.largeArea === "string" ? raw.largeArea.trim() : "";
   const middleArea =
     typeof raw.middleArea === "string" ? raw.middleArea.trim() : "";
-  if (!largeArea || !middleArea) return null;
+  // 大エリア必須。中エリアは ""（指定しない＝大エリア全体）を許可
+  if (!largeArea) return null;
 
   if (!isOneOf(raw.soup, SOUP_OPTIONS)) return null;
   if (!isOneOf(raw.spicy, SPICY_OPTIONS)) return null;

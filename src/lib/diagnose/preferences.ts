@@ -45,6 +45,7 @@ export type InboundPreference = (typeof INBOUND_OPTIONS)[number];
 
 export type DiagnosePreferences = {
   largeArea: string;
+  /** 中エリアコード。空文字 "" は「指定しない」（大エリア全体） */
   middleArea: string;
   soup: SoupPreference;
   spicy: SpicyPreference;

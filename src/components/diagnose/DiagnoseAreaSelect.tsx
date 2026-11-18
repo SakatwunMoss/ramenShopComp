@@ -24,11 +24,11 @@ export function DiagnoseAreaSelect({
   onLargeChange,
   onMiddleChange,
 }: Props) {
-  const middlePlaceholder = !largeArea
+  const middleEmptyLabel = !largeArea
     ? diagnoseCopy.area.selectLargeFirst
     : middleAreas.length === 0
       ? diagnoseCopy.area.noMiddle
-      : diagnoseCopy.area.selectPlaceholder;
+      : diagnoseCopy.area.anyMiddle;
 
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
@@ -68,11 +68,10 @@ export function DiagnoseAreaSelect({
           value={middleArea}
           onChange={(e) => onMiddleChange(e.target.value)}
           className={selectClassName}
-          required
           disabled={!largeArea || middleAreas.length === 0}
         >
           <option value="">
-            {middlePlaceholder.ja} / {middlePlaceholder.en}
+            {middleEmptyLabel.ja} / {middleEmptyLabel.en}
           </option>
           {middleAreas.map((a) => (
             <option key={a.code} value={a.code}>

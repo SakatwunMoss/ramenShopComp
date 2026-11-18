@@ -41,26 +41,31 @@ export const diagnoseCopy = {
       en: "Where do you want to search?",
     },
     hint: {
-      ja: "中エリアまで選ぶと、その範囲の店舗だけが候補になります。",
-      en: "Choose a city/district so we only search shops in that area.",
+      ja: "中エリアを選ばない場合は、大エリア全体から探します。",
+      en: "If you skip the city/district, we’ll search the whole region.",
     },
     largeLabel: {
       ja: "都道府県・大エリア",
       en: "Prefecture / region",
     },
     middleLabel: {
-      ja: "エリア（中エリア）",
-      en: "City / district",
+      ja: "エリア（中エリア）（任意）",
+      en: "City / district (optional)",
     },
     selectPlaceholder: { ja: "選択してください", en: "Please select" },
+    /** 中エリア未指定（value=""）の表示 */
+    anyMiddle: {
+      ja: "指定しない（大エリア全体）",
+      en: "Any / Entire area",
+    },
     selectLargeFirst: {
       ja: "先に大エリアを選択",
       en: "Select a region first",
     },
     noMiddle: { ja: "候補がありません", en: "No options available" },
     areaRequired: {
-      ja: "大エリアと中エリアを選択してください。",
-      en: "Please select both a region and a city/district.",
+      ja: "大エリアを選択してください。",
+      en: "Please select a region.",
     },
   },
   questions: {
@@ -89,27 +94,41 @@ export const diagnoseCopy = {
       ja: "あなたの好みに近い店",
       en: "Shops close to your taste",
     },
-    areaRecommend: (middleAreaName: string): Bilingual => ({
-      ja: `${middleAreaName}のおすすめ店`,
-      en: `Recommended in ${middleAreaName}`,
-    }),
+    areaRecommend: (
+      largeAreaName: string,
+      middleAreaName: string,
+    ): Bilingual => {
+      const area = middleAreaName.trim() || largeAreaName;
+      return {
+        ja: `${area}のおすすめ店`,
+        en: `Recommended in ${area}`,
+      };
+    },
     emptyTitle: {
       ja: "掲載店が見つかりませんでした",
       en: "No shops found in this area",
     },
-    emptyBody: (large: string, middle: string): Bilingual => ({
-      ja: `${large}・${middle}には、現在ラーメン店データがありません。別のエリアで試してください。`,
-      en: `We don’t have ramen shop data for ${large} / ${middle} yet. Try another area.`,
-    }),
+    emptyBody: (large: string, middle: string): Bilingual => {
+      const scope = middle.trim() ? `${large}・${middle}` : large;
+      const scopeEn = middle.trim() ? `${large} / ${middle}` : large;
+      return {
+        ja: `${scope}には、現在ラーメン店データがありません。別のエリアで試してください。`,
+        en: `We don’t have ramen shop data for ${scopeEn} yet. Try another area.`,
+      };
+    },
     summary: (
       large: string,
       middle: string,
       candidateCount: number,
       shown: number,
-    ): Bilingual => ({
-      ja: `${large}・${middle}の候補 ${candidateCount.toLocaleString("ja-JP")} 件から、上位 ${shown} 件を表示しています。気になる店を選んで比較できます。`,
-      en: `Showing top ${shown} of ${candidateCount.toLocaleString("en-US")} shops in ${large} / ${middle}. Select shops to compare.`,
-    }),
+    ): Bilingual => {
+      const scope = middle.trim() ? `${large}・${middle}` : large;
+      const scopeEn = middle.trim() ? `${large} / ${middle}` : large;
+      return {
+        ja: `${scope}の候補 ${candidateCount.toLocaleString("ja-JP")} 件から、上位 ${shown} 件を表示しています。気になる店を選んで比較できます。`,
+        en: `Showing top ${shown} of ${candidateCount.toLocaleString("en-US")} shops in ${scopeEn}. Select shops to compare.`,
+      };
+    },
     /** 結果画面から系統ガイドへの導線（質問画面では出さない） */
     styleGuideLink: {
       ja: "系統の説明を見る",

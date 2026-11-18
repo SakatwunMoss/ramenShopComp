@@ -292,7 +292,7 @@ export function DiagnoseQuiz({
   function goNext() {
     setError(null);
     if (step.id === "area") {
-      if (!draft.largeArea || !draft.middleArea) {
+      if (!draft.largeArea) {
         setError(diagnoseCopy.area.areaRequired.ja);
         return;
       }
@@ -621,7 +621,10 @@ const ResultsSection = forwardRef<
 ) {
   const heading = result.hasPreferenceMatch
     ? diagnoseCopy.results.preferenceMatch
-    : diagnoseCopy.results.areaRecommend(result.middleAreaName);
+    : diagnoseCopy.results.areaRecommend(
+        result.largeAreaName,
+        result.middleAreaName,
+      );
 
   if (result.candidateCount === 0) {
     const emptyBody = diagnoseCopy.results.emptyBody(

@@ -91,7 +91,8 @@ export function rankScoredShops(
 }
 
 /**
- * 中エリア必須のハードフィルタ＋タグ一致のソフト加点。
+ * 大エリア必須・中エリア任意のハードフィルタ＋タグ一致のソフト加点。
+ * 中エリアが空のときは大エリア全体を候補にする。
  * タグ不一致・タグなしでも除外・減点しない。
  */
 export function scoreShops(
@@ -107,7 +108,7 @@ export function scoreShops(
 
   const large = prefs.largeArea.trim();
   const middle = prefs.middleArea.trim();
-  if (!large || !middle) {
+  if (!large) {
     return { results: [], candidateCount: 0, hasPreferenceMatch: false };
   }
 
@@ -115,7 +116,7 @@ export function scoreShops(
     (shop) =>
       matchesRamenScope(shop, true) &&
       shop.large_area_code === large &&
-      shop.middle_area_code === middle,
+      (!middle || shop.middle_area_code === middle),
   );
 
   const wanted = desiredTags(prefs);

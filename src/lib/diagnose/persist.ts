@@ -148,7 +148,8 @@ export function readDiagnoseState(
 
     const draft = data.draft as DiagnosePreferences;
     if (data.finished) {
-      if (!draft.largeArea || !draft.middleArea) {
+      // 中エリアは任意（""＝大エリア全体）。大エリアだけ必須
+      if (!draft.largeArea) {
         clearDiagnoseState();
         return null;
       }
