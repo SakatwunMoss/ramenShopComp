@@ -1,12 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
-import { AffiliateProducts } from "@/components/AffiliateProducts";
+import {
+  AffiliateProductsRandom,
+  AffiliateRandomProvider,
+} from "@/components/AffiliateProductsRandom";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { JsonLd } from "@/components/JsonLd";
 import { Pagination } from "@/components/Pagination";
 import { RelatedAreas } from "@/components/RelatedAreas";
 import { ShopCompareGrid } from "@/components/ShopCompareGrid";
+import { loadAffiliateSnapshot } from "@/lib/affiliate/products-data";
 import {
   buildBreadcrumbNode,
   buildItemListNode,
@@ -131,30 +135,38 @@ export default async function MiddleAreaPage({
 
   const page = Math.max(1, Number((await searchParams).page) || 1);
 
-  const [largeName, middleName, paginated, genres, siblingMiddles, parentTotal] =
-    await Promise.all([
-      resolveLargeName(largeAreaCode),
-      resolveMiddleName(middleAreaCode),
-      listShopsPaginated(
-        {
-          area: largeAreaCode,
-          middleArea: middleAreaCode,
-          ramenOnly: true,
-        },
-        page,
-        SHOPS_PAGE_SIZE,
-      ),
-      listGenreTrends(
-        {
-          area: largeAreaCode,
-          middleArea: middleAreaCode,
-          ramenOnly: true,
-        },
-        5,
-      ),
-      listMiddleAreas(largeAreaCode, { ramenOnly: true }),
-      listShopsPaginated({ area: largeAreaCode, ramenOnly: true }, 1, 1),
-    ]);
+  const [
+    largeName,
+    middleName,
+    paginated,
+    genres,
+    siblingMiddles,
+    parentTotal,
+    affiliateSnapshot,
+  ] = await Promise.all([
+    resolveLargeName(largeAreaCode),
+    resolveMiddleName(middleAreaCode),
+    listShopsPaginated(
+      {
+        area: largeAreaCode,
+        middleArea: middleAreaCode,
+        ramenOnly: true,
+      },
+      page,
+      SHOPS_PAGE_SIZE,
+    ),
+    listGenreTrends(
+      {
+        area: largeAreaCode,
+        middleArea: middleAreaCode,
+        ramenOnly: true,
+      },
+      5,
+    ),
+    listMiddleAreas(largeAreaCode, { ramenOnly: true }),
+    listShopsPaginated({ area: largeAreaCode, ramenOnly: true }, 1, 1),
+    loadAffiliateSnapshot(),
+  ]);
 
   if (paginated.total === 0) {
     // ラーメン0件だが親大エリアに店舗がある場合は 404 ではなく親へ誘導
@@ -227,7 +239,9 @@ export default async function MiddleAreaPage({
           最大3店舗まで選んでくらべられます
         </p>
 
-        <AffiliateProducts styleKeys={[]} limit={2} className="mb-8" />
+        <AffiliateRandomProvider snapshot={affiliateSnapshot}>
+          <AffiliateProductsRandom limit={2} className="mb-8" />
+        </AffiliateRandomProvider>
 
         {paginated.shops.length > 0 && (
           <ShopCompareGrid shops={paginated.shops} />

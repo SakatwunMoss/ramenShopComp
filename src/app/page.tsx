@@ -1,12 +1,16 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { AffiliateProducts } from "@/components/AffiliateProducts";
+import {
+  AffiliateProductsRandom,
+  AffiliateRandomProvider,
+} from "@/components/AffiliateProductsRandom";
 import { DiagnoseNavLink } from "@/components/diagnose/DiagnoseNavLink";
 import { JsonLd } from "@/components/JsonLd";
 import { Pagination } from "@/components/Pagination";
 import { ShopCompareGrid } from "@/components/ShopCompareGrid";
 import { ShopFilters } from "@/components/ShopFilters";
+import { loadAffiliateSnapshot } from "@/lib/affiliate/products-data";
 import {
   buildBreadcrumbNode,
   buildItemListNode,
@@ -50,19 +54,21 @@ export default async function HomePage({
   const page = Math.max(1, Number(params.page) || 1);
   const hasShopsData = await isShopsDataAvailable();
 
-  const [paginated, areas, selectedAreaLabel] = await Promise.all([
-    listShopsPaginated(
-      {
-        area: params.area,
-        q: params.q,
-        ramenOnly,
-      },
-      page,
-      SHOPS_PAGE_SIZE,
-    ),
-    listLargeAreas({ ramenOnly }),
-    params.area ? getAreaLabel(params.area) : Promise.resolve(null),
-  ]);
+  const [paginated, areas, selectedAreaLabel, affiliateSnapshot] =
+    await Promise.all([
+      listShopsPaginated(
+        {
+          area: params.area,
+          q: params.q,
+          ramenOnly,
+        },
+        page,
+        SHOPS_PAGE_SIZE,
+      ),
+      listLargeAreas({ ramenOnly }),
+      params.area ? getAreaLabel(params.area) : Promise.resolve(null),
+      loadAffiliateSnapshot(),
+    ]);
 
   const { shops, total, totalPages } = paginated;
 
@@ -194,7 +200,9 @@ export default async function HomePage({
             currentScope={ramenOnly ? "ramen" : "all"}
           />
 
-          <AffiliateProducts styleKeys={[]} limit={2} className="mt-8" />
+          <AffiliateRandomProvider snapshot={affiliateSnapshot}>
+            <AffiliateProductsRandom limit={2} className="mt-8" />
+          </AffiliateRandomProvider>
 
           {areas.length > 0 && (
             <p className="mt-4 text-sm text-ink-muted">

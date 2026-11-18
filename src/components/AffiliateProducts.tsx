@@ -1,6 +1,10 @@
+import { AffiliateProductsRandom } from "@/components/AffiliateProductsRandom";
 import { AffiliateProductsView } from "@/components/AffiliateProductsView";
 import { loadAffiliateSnapshot } from "@/lib/affiliate/products-data";
-import { selectAffiliateProducts } from "@/lib/affiliate/select";
+import {
+  isDeterminedAffiliateStyle,
+  selectAffiliateProducts,
+} from "@/lib/affiliate/select";
 import type {
   AffiliateProduct,
   AffiliateProductsSnapshot,
@@ -8,7 +12,7 @@ import type {
 } from "@/lib/affiliate/types";
 
 type AffiliateProductsProps = {
-  /** 系統キー（単一・複数・未指定可） */
+  /** 系統キー（ちょうど1つなら系統枠、0/複数なら全商品からランダム） */
   styleKeys?: Array<AffiliateStyleKey | string | null | undefined>;
   limit?: number;
   className?: string;
@@ -19,7 +23,9 @@ type AffiliateProductsProps = {
 };
 
 /**
- * サーバーコンポーネント用。R2（または開発時サンプル）から読み、系統に合う商品を表示。
+ * サーバーコンポーネント用。
+ * - 系統確定: サーバーで選定して描画
+ * - 混在/未指定: スナップショットをクライアントへ渡し、useEffect でランダム選定
  * 商品が無い場合はブロックごと非表示。
  */
 export async function AffiliateProducts({
@@ -29,12 +35,22 @@ export async function AffiliateProducts({
   products,
   snapshot,
 }: AffiliateProductsProps) {
-  let selected = products ?? null;
-
-  if (!selected) {
-    const data = snapshot ?? (await loadAffiliateSnapshot());
-    selected = selectAffiliateProducts(data, styleKeys, limit);
+  if (products) {
+    return <AffiliateProductsView products={products} className={className} />;
   }
 
-  return <AffiliateProductsView products={selected} className={className} />;
+  const data = snapshot ?? (await loadAffiliateSnapshot());
+
+  if (isDeterminedAffiliateStyle(styleKeys)) {
+    const selected = selectAffiliateProducts(data, styleKeys, limit);
+    return <AffiliateProductsView products={selected} className={className} />;
+  }
+
+  return (
+    <AffiliateProductsRandom
+      snapshot={data}
+      limit={limit}
+      className={className}
+    />
+  );
 }

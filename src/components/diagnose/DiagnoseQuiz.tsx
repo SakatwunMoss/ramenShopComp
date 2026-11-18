@@ -14,6 +14,7 @@ import {
   runDiagnose,
   type DiagnoseActionResult,
 } from "@/app/diagnose/actions";
+import { AffiliateProductsRandom } from "@/components/AffiliateProductsRandom";
 import { AffiliateProductsView } from "@/components/AffiliateProductsView";
 import { BilingualText } from "@/components/diagnose/BilingualText";
 import { DiagnoseAreaSelect } from "@/components/diagnose/DiagnoseAreaSelect";
@@ -679,11 +680,9 @@ const ResultsSection = forwardRef<
     shops.length,
   );
   const styleKey = soupPreferenceToStyleKey(soup);
-  const affiliateProducts = selectAffiliateProducts(
-    affiliateSnapshot,
-    styleKey ? [styleKey] : [],
-    2,
-  );
+  const affiliateProducts = styleKey
+    ? selectAffiliateProducts(affiliateSnapshot, [styleKey], 2)
+    : null;
 
   return (
     <section ref={ref}>
@@ -723,7 +722,15 @@ const ResultsSection = forwardRef<
         onSelectedIdsChange={onSelectedIdsChange}
       />
 
-      <AffiliateProductsView products={affiliateProducts} className="mt-8" />
+      {affiliateProducts ? (
+        <AffiliateProductsView products={affiliateProducts} className="mt-8" />
+      ) : (
+        <AffiliateProductsRandom
+          snapshot={affiliateSnapshot}
+          limit={2}
+          className="mt-8"
+        />
+      )}
 
       <div className="mt-8 flex flex-wrap gap-3">
         <button

@@ -10,8 +10,18 @@ import {
 } from "@/lib/compare";
 import { inferRamenStyleFromShop } from "@/lib/seo-en";
 import { isShopsDataAvailable, getShopsByIds } from "@/lib/shops";
+import type { Shop } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
+
+/** 比較中店舗の系統が1つに揃うときだけその系統。複数/不明は空＝ランダム */
+function resolveCompareAffiliateStyleKeys(shops: Shop[]): string[] {
+  const ids = shops
+    .map((shop) => inferRamenStyleFromShop(shop)?.id)
+    .filter((id): id is NonNullable<typeof id> => id != null);
+  const unique = [...new Set(ids)];
+  return unique.length === 1 ? [unique[0]!] : [];
+}
 
 type PageProps = {
   searchParams: Promise<{ ids?: string | string[] }>;
@@ -90,7 +100,7 @@ export default async function ComparePage({ searchParams }: PageProps) {
       <CompareTable shops={shops} />
 
       <AffiliateProducts
-        styleKeys={shops.map((shop) => inferRamenStyleFromShop(shop)?.id)}
+        styleKeys={resolveCompareAffiliateStyleKeys(shops)}
         limit={2}
         className="mt-8"
       />

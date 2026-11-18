@@ -1,12 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
-import { AffiliateProducts } from "@/components/AffiliateProducts";
+import {
+  AffiliateProductsRandom,
+  AffiliateRandomProvider,
+} from "@/components/AffiliateProductsRandom";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { JsonLd } from "@/components/JsonLd";
 import { Pagination } from "@/components/Pagination";
 import { RelatedAreas } from "@/components/RelatedAreas";
 import { ShopCompareGrid } from "@/components/ShopCompareGrid";
+import { loadAffiliateSnapshot } from "@/lib/affiliate/products-data";
 import {
   buildBreadcrumbNode,
   buildItemListNode,
@@ -95,16 +99,18 @@ export default async function LargeAreaPage({ params, searchParams }: Props) {
   const page = Math.max(1, Number((await searchParams).page) || 1);
   const areaName = await resolveLargeName(largeAreaCode);
 
-  const [paginated, middleAreas, genres, siblingAreas] = await Promise.all([
-    listShopsPaginated(
-      { area: largeAreaCode, ramenOnly: true },
-      page,
-      SHOPS_PAGE_SIZE,
-    ),
-    listMiddleAreas(largeAreaCode, { ramenOnly: true }),
-    listGenreTrends({ area: largeAreaCode, ramenOnly: true }, 5),
-    listLargeAreas({ ramenOnly: true }),
-  ]);
+  const [paginated, middleAreas, genres, siblingAreas, affiliateSnapshot] =
+    await Promise.all([
+      listShopsPaginated(
+        { area: largeAreaCode, ramenOnly: true },
+        page,
+        SHOPS_PAGE_SIZE,
+      ),
+      listMiddleAreas(largeAreaCode, { ramenOnly: true }),
+      listGenreTrends({ area: largeAreaCode, ramenOnly: true }, 5),
+      listLargeAreas({ ramenOnly: true }),
+      loadAffiliateSnapshot(),
+    ]);
 
   if (paginated.total === 0) {
     notFound();
@@ -191,7 +197,9 @@ export default async function LargeAreaPage({ params, searchParams }: Props) {
           最大3店舗まで選んでくらべられます
         </p>
 
-        <AffiliateProducts styleKeys={[]} limit={2} className="mb-8" />
+        <AffiliateRandomProvider snapshot={affiliateSnapshot}>
+          <AffiliateProductsRandom limit={2} className="mb-8" />
+        </AffiliateRandomProvider>
 
         {paginated.shops.length > 0 && (
           <ShopCompareGrid shops={paginated.shops} />
