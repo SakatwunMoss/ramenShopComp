@@ -1,13 +1,13 @@
 "use client";
 
 import {
-  forwardRef,
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
   useTransition,
+  type Ref,
 } from "react";
 import Link from "next/link";
 import {
@@ -68,6 +68,12 @@ const STEPS: {
 
 const RESULT_STEP_INDEX = STEPS.findIndex((s) => s.id === "result");
 
+/** sticky ヘッダー h-14（56px）＋余白。scroll-mt-20（80px）と揃える */
+const HEADER_SCROLL_MARGIN_PX = 80;
+
+const stepHeadingClassName =
+  "scroll-mt-20 font-[family-name:var(--font-display)] text-xl tracking-wide outline-none";
+
 export type MiddleAreasByLarge = Record<string, AreaStat[]>;
 
 type Props = {
@@ -89,9 +95,44 @@ function initialDraft(): Draft {
   };
 }
 
-const optionButtonClass = (selected: boolean) =>
+function prefersReducedMotion(): boolean {
+  if (typeof window === "undefined") return true;
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function getScrollBehavior(): ScrollBehavior {
+  return prefersReducedMotion() ? "auto" : "smooth";
+}
+
+/** 先頭が sticky ヘッダー下に見えていればスクロール不要 */
+function isAnchorVisibleInViewport(
+  el: Element,
+  headerOffset = HEADER_SCROLL_MARGIN_PX,
+): boolean {
+  const rect = el.getBoundingClientRect();
+  return rect.top >= headerOffset - 1 && rect.top < window.innerHeight;
+}
+
+function scrollElementIntoView(
+  el: Element | null,
+  options?: { force?: boolean; block?: ScrollLogicalPosition },
+): void {
+  if (!el) return;
+  if (!options?.force && isAnchorVisibleInViewport(el)) return;
+  const block = options?.block ?? "start";
+  try {
+    el.scrollIntoView({ block, behavior: getScrollBehavior() });
+  } catch {
+    el.scrollIntoView();
+  }
+}
+
+const optionButtonClass = (selected: boolean, compact = false) =>
   [
-    "min-h-[3.25rem] border px-4 py-3 text-left transition",
+    // min-h-11 = 44px（タップ領域の下限）
+    compact
+      ? "min-h-11 h-full border px-3 py-2.5 text-left transition sm:min-h-[3.25rem] sm:px-4 sm:py-3"
+      : "min-h-[3.25rem] border px-4 py-3 text-left transition",
     selected
       ? "border-lacquer bg-lacquer/10 text-ink"
       : "border-line bg-steam/70 text-ink hover:border-lacquer/50",
@@ -113,9 +154,12 @@ export function DiagnoseQuiz({
   const [hydrated, setHydrated] = useState(false);
   const [restoringResults, setRestoringResults] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const resultsRef = useRef<HTMLElement | null>(null);
+  const stepHeadingRef = useRef<HTMLHeadingElement | null>(null);
+  const errorAlertRef = useRef<HTMLDivElement | null>(null);
   const skipPersistRef = useRef(true);
-  const shouldScrollToResultsRef = useRef(false);
+  /** 初回表示・sessionStorage 復元直後は自動スクロールしない */
+  const skipAutoScrollRef = useRef(true);
+  const prevViewKeyRef = useRef<string | null>(null);
   const resultRef = useRef(result);
 
   useEffect(() => {
@@ -199,7 +243,6 @@ export function DiagnoseQuiz({
       if (saved.finished) {
         setRestoringResults(true);
         setStepIndex(RESULT_STEP_INDEX);
-        shouldScrollToResultsRef.current = true;
         try {
           const res = await runDiagnose(saved.draft);
           if (cancelled) return;
@@ -210,7 +253,6 @@ export function DiagnoseQuiz({
             setResult(null);
             setSelectedIds([]);
             setError(res.error);
-            shouldScrollToResultsRef.current = false;
           } else {
             const validIds = res.results.map((item) => item.shop.id);
             setSelectedIds(
@@ -226,7 +268,6 @@ export function DiagnoseQuiz({
           setStepIndex(0);
           setResult(null);
           setSelectedIds([]);
-          shouldScrollToResultsRef.current = false;
         } finally {
           if (!cancelled) {
             setRestoringResults(false);
@@ -261,17 +302,38 @@ export function DiagnoseQuiz({
     });
   }, [draft, stepIndex, finished, selectedIds, hydrated]);
 
-  // 結果復元後にカード一覧付近へスクロール
+  // ステップ切替・結果表示切替時に質問/結果見出しへスクロール＆フォーカス
   useEffect(() => {
-    if (!hydrated || !finished || !resultsRef.current) return;
-    if (!shouldScrollToResultsRef.current) return;
-    shouldScrollToResultsRef.current = false;
-    try {
-      resultsRef.current.scrollIntoView({ block: "start", behavior: "auto" });
-    } catch {
-      resultsRef.current.scrollIntoView();
+    if (!hydrated || restoringResults) return;
+
+    const viewKey = finished ? "result" : `step-${stepIndex}`;
+
+    if (skipAutoScrollRef.current) {
+      skipAutoScrollRef.current = false;
+      prevViewKeyRef.current = viewKey;
+      return;
     }
-  }, [hydrated, finished, result]);
+
+    if (prevViewKeyRef.current === viewKey) return;
+    prevViewKeyRef.current = viewKey;
+
+    const heading = stepHeadingRef.current;
+    if (!heading) return;
+
+    if (!isAnchorVisibleInViewport(heading)) {
+      scrollElementIntoView(heading, { force: true });
+    }
+    heading.focus({ preventScroll: true });
+  }, [hydrated, restoringResults, stepIndex, finished]);
+
+  // バリデーション等のエラー表示時はメッセージが見える位置へ
+  useEffect(() => {
+    if (!hydrated || restoringResults || !error) return;
+    scrollElementIntoView(errorAlertRef.current, {
+      force: true,
+      block: "nearest",
+    });
+  }, [error, hydrated, restoringResults]);
 
   // ヘッダー等から診断へ再入場したとき、完了済み UI を最初からに戻す
   useEffect(() => {
@@ -294,6 +356,13 @@ export function DiagnoseQuiz({
     if (step.id === "area") {
       if (!draft.largeArea) {
         setError(diagnoseCopy.area.areaRequired.ja);
+        // 同一エラーの再クリックでも見える位置へ（effect は同一値だと再発火しない）
+        requestAnimationFrame(() => {
+          scrollElementIntoView(errorAlertRef.current, {
+            force: true,
+            block: "nearest",
+          });
+        });
         return;
       }
     }
@@ -403,22 +472,26 @@ export function DiagnoseQuiz({
 
         {!showPlaceholder && step.id === "area" ? (
           <section>
-            <BilingualText
-              as="h2"
-              ja={diagnoseCopy.area.question.ja}
-              en={diagnoseCopy.area.question.en}
-              className="font-[family-name:var(--font-display)] text-xl tracking-wide"
-              jaClassName="block"
-              enClassName="mt-1 font-sans tracking-normal"
-            />
+            <h2
+              ref={stepHeadingRef}
+              tabIndex={-1}
+              className={stepHeadingClassName}
+            >
+              <BilingualText
+                ja={diagnoseCopy.area.question.ja}
+                en={diagnoseCopy.area.question.en}
+                jaClassName="block"
+                enClassName="mt-1 font-sans tracking-normal"
+              />
+            </h2>
             <BilingualText
               as="p"
               ja={diagnoseCopy.area.hint.ja}
               en={diagnoseCopy.area.hint.en}
-              className="mt-2 text-sm text-ink-muted"
+              className="mt-1.5 text-sm leading-snug text-ink-muted sm:mt-2 sm:leading-relaxed"
               tone="muted"
             />
-            <div className="mt-6">
+            <div className="mt-4 sm:mt-6">
               <DiagnoseAreaSelect
                 largeAreas={largeAreas}
                 middleAreas={middleAreas}
@@ -444,6 +517,8 @@ export function DiagnoseQuiz({
             title={diagnoseCopy.questions.soup}
             options={SOUP_OPTIONS}
             value={draft.soup}
+            headingRef={stepHeadingRef}
+            compactMobileGrid
             onChange={(soup) =>
               setDraft((d) => ({ ...d, soup: soup as SoupPreference }))
             }
@@ -455,6 +530,7 @@ export function DiagnoseQuiz({
             title={diagnoseCopy.questions.spicy}
             options={SPICY_OPTIONS}
             value={draft.spicy}
+            headingRef={stepHeadingRef}
             onChange={(spicy) =>
               setDraft((d) => ({ ...d, spicy: spicy as SpicyPreference }))
             }
@@ -466,6 +542,7 @@ export function DiagnoseQuiz({
             title={diagnoseCopy.questions.richness}
             options={RICHNESS_OPTIONS}
             value={draft.richness}
+            headingRef={stepHeadingRef}
             onChange={(richness) =>
               setDraft((d) => ({
                 ...d,
@@ -480,6 +557,7 @@ export function DiagnoseQuiz({
             title={diagnoseCopy.questions.inbound}
             options={INBOUND_OPTIONS}
             value={draft.inbound}
+            headingRef={stepHeadingRef}
             onChange={(inbound) =>
               setDraft((d) => ({
                 ...d,
@@ -491,7 +569,6 @@ export function DiagnoseQuiz({
 
         {!showPlaceholder && step.id === "result" && result ? (
           <ResultsSection
-            ref={resultsRef}
             result={result}
             soup={draft.soup}
             affiliateSnapshot={affiliateSnapshot}
@@ -499,13 +576,15 @@ export function DiagnoseQuiz({
             initialSelectedIds={selectedIds}
             onSelectedIdsChange={handleSelectedIdsChange}
             onRestart={restart}
+            headingRef={stepHeadingRef}
           />
         ) : null}
       </div>
 
       {errorCopy && !showPlaceholder ? (
         <div
-          className="mt-6 border border-[#e8b86d]/50 bg-[#fff6e8] px-4 py-3 text-sm text-[#7a5520]"
+          ref={errorAlertRef}
+          className="mt-6 scroll-mt-20 border border-[#e8b86d]/50 bg-[#fff6e8] px-4 py-3 text-sm text-[#7a5520]"
           role="alert"
         >
           <BilingualText
@@ -554,28 +633,39 @@ function ChoiceStep({
   options,
   value,
   onChange,
+  headingRef,
+  compactMobileGrid = false,
 }: {
   title: { ja: string; en: string };
   options: readonly string[];
   value: string;
   onChange: (value: string) => void;
+  headingRef?: Ref<HTMLHeadingElement>;
+  /** スマホでも2列（スープ6択向け）。sm以上は他ステップと同じ2列 */
+  compactMobileGrid?: boolean;
 }) {
   return (
     <section>
-      <BilingualText
-        as="h2"
-        ja={title.ja}
-        en={title.en}
-        className="font-[family-name:var(--font-display)] text-xl tracking-wide"
-        jaClassName="block"
-        enClassName="mt-1 font-sans tracking-normal"
-      />
-      <ul className="mt-6 grid grid-cols-1 gap-2 sm:grid-cols-2">
+      <h2 ref={headingRef} tabIndex={-1} className={stepHeadingClassName}>
+        <BilingualText
+          ja={title.ja}
+          en={title.en}
+          jaClassName="block"
+          enClassName="mt-1 font-sans tracking-normal"
+        />
+      </h2>
+      <ul
+        className={
+          compactMobileGrid
+            ? "mt-6 grid grid-cols-2 gap-2"
+            : "mt-6 grid grid-cols-1 gap-2 sm:grid-cols-2"
+        }
+      >
         {options.map((option) => (
-          <li key={option}>
+          <li key={option} className={compactMobileGrid ? "flex" : undefined}>
             <button
               type="button"
-              className={`w-full ${optionButtonClass(value === option)}`}
+              className={`flex w-full flex-col justify-center ${optionButtonClass(value === option, compactMobileGrid)}`}
               onClick={() => onChange(option)}
               aria-pressed={value === option}
             >
@@ -584,7 +674,11 @@ function ChoiceStep({
               </span>
               <span
                 lang="en"
-                className="mt-0.5 block text-[11px] leading-snug text-ink-muted sm:text-xs"
+                className={
+                  compactMobileGrid
+                    ? "mt-0.5 block text-[10px] leading-snug break-words text-ink-muted sm:text-xs"
+                    : "mt-0.5 block text-[11px] leading-snug text-ink-muted sm:text-xs"
+                }
               >
                 {optionEn(option)}
               </span>
@@ -596,29 +690,25 @@ function ChoiceStep({
   );
 }
 
-const ResultsSection = forwardRef<
-  HTMLElement,
-  {
-    result: Extract<DiagnoseActionResult, { ok: true }>;
-    soup: SoupPreference;
-    affiliateSnapshot: AffiliateProductsSnapshot | null;
-    matchReasonsById?: Record<string, string[]>;
-    initialSelectedIds: string[];
-    onSelectedIdsChange: (ids: string[]) => void;
-    onRestart: () => void;
-  }
->(function ResultsSection(
-  {
-    result,
-    soup,
-    affiliateSnapshot,
-    matchReasonsById,
-    initialSelectedIds,
-    onSelectedIdsChange,
-    onRestart,
-  },
-  ref,
-) {
+function ResultsSection({
+  result,
+  soup,
+  affiliateSnapshot,
+  matchReasonsById,
+  initialSelectedIds,
+  onSelectedIdsChange,
+  onRestart,
+  headingRef,
+}: {
+  result: Extract<DiagnoseActionResult, { ok: true }>;
+  soup: SoupPreference;
+  affiliateSnapshot: AffiliateProductsSnapshot | null;
+  matchReasonsById?: Record<string, string[]>;
+  initialSelectedIds: string[];
+  onSelectedIdsChange: (ids: string[]) => void;
+  onRestart: () => void;
+  headingRef?: Ref<HTMLHeadingElement>;
+}) {
   const heading = result.hasPreferenceMatch
     ? diagnoseCopy.results.preferenceMatch
     : diagnoseCopy.results.areaRecommend(
@@ -632,15 +722,15 @@ const ResultsSection = forwardRef<
       result.middleAreaName,
     );
     return (
-      <section ref={ref}>
-        <BilingualText
-          as="h2"
-          ja={diagnoseCopy.results.emptyTitle.ja}
-          en={diagnoseCopy.results.emptyTitle.en}
-          className="font-[family-name:var(--font-display)] text-xl tracking-wide"
-          jaClassName="block"
-          enClassName="mt-1 font-sans tracking-normal"
-        />
+      <section>
+        <h2 ref={headingRef} tabIndex={-1} className={stepHeadingClassName}>
+          <BilingualText
+            ja={diagnoseCopy.results.emptyTitle.ja}
+            en={diagnoseCopy.results.emptyTitle.en}
+            jaClassName="block"
+            enClassName="mt-1 font-sans tracking-normal"
+          />
+        </h2>
         <BilingualText
           as="p"
           ja={emptyBody.ja}
@@ -688,15 +778,19 @@ const ResultsSection = forwardRef<
     : null;
 
   return (
-    <section ref={ref}>
-      <BilingualText
-        as="h2"
-        ja={heading.ja}
-        en={heading.en}
-        className="font-[family-name:var(--font-display)] text-xl tracking-wide sm:text-2xl"
-        jaClassName="block"
-        enClassName="mt-1 font-sans text-base tracking-normal sm:text-lg"
-      />
+    <section>
+      <h2
+        ref={headingRef}
+        tabIndex={-1}
+        className={`${stepHeadingClassName} sm:text-2xl`}
+      >
+        <BilingualText
+          ja={heading.ja}
+          en={heading.en}
+          jaClassName="block"
+          enClassName="mt-1 font-sans text-base tracking-normal sm:text-lg"
+        />
+      </h2>
       <BilingualText
         as="p"
         ja={summary.ja}
@@ -749,4 +843,4 @@ const ResultsSection = forwardRef<
       </div>
     </section>
   );
-});
+}
